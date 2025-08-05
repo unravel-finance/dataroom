@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 """
-Convert run_*.py scripts to Jupyter notebooks using jupytext.
+Convert *.py scripts to Jupyter notebooks using jupytext.
 """
 
 import subprocess
@@ -10,8 +9,8 @@ from pathlib import Path
 
 def convert_file_to_notebook(py_file: Path) -> None:
     """Convert a Python file to a Jupyter notebook using jupytext."""
-    # Create notebook filename with 'notebook_' prefix instead of 'run_'
-    notebook_name = py_file.stem.replace("run_", "notebook_") + ".ipynb"
+    # Create notebook filename with .ipynb extension
+    notebook_name = py_file.stem + ".ipynb"
     notebook_file = py_file.parent / notebook_name
 
     print(f"Converting {py_file} to {notebook_file}...")
@@ -45,7 +44,7 @@ def convert_file_to_notebook(py_file: Path) -> None:
 
 
 def main():
-    """Convert all run_*.py files in the root directory to notebooks."""
+    """Convert all *.py files in the root directory to notebooks."""
 
     # Check if jupytext is installed
     try:
@@ -59,13 +58,14 @@ def main():
     root_dir = Path(".")
 
     # Find all run_*.py files
-    run_files = list(root_dir.glob("run_*.py"))
+    run_files = list(root_dir.glob("*.py"))
+    run_files = [file for file in run_files if file.stem != "convert_to_notebooks"]
 
     if not run_files:
-        print("No run_*.py files found in the current directory.")
+        print("No .py files found in the current directory.")
         return
 
-    print(f"Found {len(run_files)} run_*.py files to convert:")
+    print(f"Found {len(run_files)} .py files to convert:")
     for file in run_files:
         print(f"  - {file}")
 

@@ -20,7 +20,7 @@ def get_portfolio_historical_weights(
         end_date (str): End date in 'YYYY-MM-DD' format
         API_KEY (str): The API key to use for the request
     Returns:
-        pd.Series: Time series of the risk signal with datetime index
+        pd.DataFrame: Historical weights of the portfolio
     """
     url = f"{BASEAPI}/portfolio/historical-weights"
     params = {

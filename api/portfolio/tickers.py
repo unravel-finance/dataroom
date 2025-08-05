@@ -13,7 +13,7 @@ def get_tickers(portfolioId: str, API_KEY: str, universe_size: int | str) -> lis
         universe_size (int | str): The universe size to use for the request. Pass in 'full' to get all available tickers for the portfolio.
 
     Returns:
-        pd.Series: Time series of the risk signal with datetime index
+        list[str]: List of tickers in the portfolio
     """
 
     url = f"{BASEAPI}/portfolio/tickers"

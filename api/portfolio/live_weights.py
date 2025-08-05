@@ -12,7 +12,7 @@ def get_live_weights(portfolio: str, API_KEY: str) -> pd.Series:
         portfolio (str): The portfolio ID
         API_KEY (str): The API key to use for the request
     Returns:
-        pd.Series: Time series of the risk signal with datetime index
+        pd.Series: Current weights of the portfolio
     """
     url = f"{BASEAPI}/portfolio/live-weights"
     params = {

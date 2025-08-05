@@ -58,7 +58,7 @@ export UNRAVEL_API_KEY="your_api_key_here"
 Run the complete portfolio backtesting example:
 
 ```bash
-notebook_replicate_portfolio_backtest.ipynb
+replicate_portfolio_backtest.ipynb
 ```
 
 This notebook demonstrates:
@@ -73,7 +73,7 @@ This notebook demonstrates:
 Get current portfolio allocations:
 
 ```bash
-notebook_get_live_weights.ipynb
+get_live_weights.ipynb
 ```
 
 ### 3. Factor Analysis
@@ -81,14 +81,11 @@ notebook_get_live_weights.ipynb
 Analyze portfolio factors:
 
 ```bash
-notebook_analyse_portfolio_factors.ipynb
+factor_analysis_altair.ipynb
+factor_analysis_carry_enhanced.ipynb
+factor_analysis_retail_flow.ipynb
 ```
 
-## Available Scripts
-
-- `run_replicate_portfolio_backtest.py`: Complete portfolio backtesting example
-- `run_get_live_weights.py`: Get current portfolio weights
-- `run_analyse_portfolio_factors.py`: Basic factor analysis
 
 ## License
 

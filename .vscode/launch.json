@@ -5,14 +5,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Get Portfolio Factors Historical",
+      "name": "Convert to Notebooks",
       "type": "debugpy",
       "request": "launch",
-      "module": "factors.main",
+      "module": "convert_to_notebooks",
       "justMyCode": true,
-      "args": [
-        "momentum_enhanced"
-      ]
     },
   ],
 }
