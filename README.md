@@ -33,8 +33,8 @@ This repository provides transparent, easy-to-understand code examples for:
 
 ```bash
 # Clone the repository
-git clone https://github.com/unravel-finance/api-snippets.git
-cd api-snippets
+git clone https://github.com/unravel-finance/api-guide.git
+cd api-guide
 
 # Install dependencies
 pip install -r requirements.txt
@@ -85,7 +85,6 @@ factor_analysis_altair.ipynb
 factor_analysis_carry_enhanced.ipynb
 factor_analysis_retail_flow.ipynb
 ```
-
 
 ## License
 
