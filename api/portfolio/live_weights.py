@@ -27,4 +27,4 @@ def get_live_weights(portfolio: str, API_KEY: str) -> pd.Series:
     response = response.json()
     return pd.Series(response["data"], index=response["columns"]).rename(
         response["index"]
-    )
+    ).astype(float)

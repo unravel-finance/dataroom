@@ -40,4 +40,4 @@ def get_portfolio_historical_weights(
         response["data"],
         index=pd.to_datetime(response["index"]),
         columns=response["columns"],
-    )
+    ).astype(float)

@@ -8,9 +8,9 @@ from analysis.utils import rebase
 from api import get_portfolio_historical_weights
 
 UNRAVEL_API_KEY = get_env("UNRAVEL_API_KEY")
-portfolio = "beta.5"
-start_date = "2022-01-01"
-end_date = "2024-06-01"
+portfolio = "quarta.40"
+start_date = "2020-01-01"
+end_date = "2025-01-01"
 benchmark_ticker = "BTC"
 
 
@@ -37,9 +37,9 @@ else:
 
 underlying_returns = underlying.pct_change()
 portfolio_returns, _ = backtest_portfolio(
-    weights=portfolio_historical_weights,
+    weights=portfolio_historical_weights[underlying.columns],
     underlying=underlying_returns,
-    transaction_cost=0.001,
+    transaction_cost=0.0005,
     lag=0,
 )
 portfolio_cumulative_returns = (1 + portfolio_returns).cumprod()

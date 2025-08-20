@@ -32,4 +32,4 @@ def get_portfolio_factors_historical(
         response["data"],
         index=pd.to_datetime(response["index"]),
         columns=response["columns"],
-    )
+    ).astype(float)
