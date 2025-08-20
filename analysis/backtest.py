@@ -26,7 +26,7 @@ def backtest_portfolio(
     """
     assert weights.columns.equals(underlying.columns), "Columns must match"
     underlying = underlying.loc[weights.index]
-    weights = weights.ffill().reindex(underlying.index).ffill().copy()
+    weights = weights.fillna(0).reindex(underlying.index).ffill()
     weights.columns = underlying.columns
     delta_pos = weights.diff(1).abs().fillna(0.0)
     costs = transaction_cost * delta_pos
