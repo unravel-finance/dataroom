@@ -1,21 +1,22 @@
 # %%
 
-from analysis.utils import get_env
+from unravel_client import get_portfolio_factors_historical, get_tickers
 
 from analysis.alphalens import factor_analysis
 from analysis.price import get_price_data
-from api.portfolio.factors import get_portfolio_factors_historical
-from api.portfolio.tickers import get_tickers
+from analysis.utils import get_env
 
 UNRAVEL_API_KEY = get_env("UNRAVEL_API_KEY")
 portfolio = "retail_flow"
 
-available_tickers = get_tickers(portfolio, UNRAVEL_API_KEY, universe_size="30")
+available_tickers = get_tickers(
+    id=portfolio, api_key=UNRAVEL_API_KEY, universe_size="30", exchange=None
+)
 historical_factors = get_portfolio_factors_historical(
-    portfolio, available_tickers, UNRAVEL_API_KEY
+    id=portfolio, tickers=available_tickers, api_key=UNRAVEL_API_KEY
 )
 
-underlying = get_price_data(available_tickers)
+underlying = get_price_data(tickers=available_tickers)
 
 columns_intersection = historical_factors.columns.intersection(underlying.columns)
 factor_analysis(historical_factors[columns_intersection], underlying)
