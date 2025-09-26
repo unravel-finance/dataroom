@@ -27,6 +27,10 @@ underlying = get_price_data(
     end_date=end_date,
 )
 
+index_intersection = portfolio_historical_weights.index.intersection(underlying.index)
+portfolio_historical_weights = portfolio_historical_weights.loc[index_intersection]
+underlying = underlying.loc[index_intersection]
+
 if benchmark_ticker in underlying.columns:
     benchmark = underlying[benchmark_ticker]
 else:
