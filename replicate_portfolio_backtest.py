@@ -3,7 +3,7 @@ from unravel_client import get_portfolio_historical_weights
 
 from analysis.backtest import backtest_portfolio
 from analysis.plot import plot_backtest_results
-from analysis.price import get_price_data
+from unravel_client import get_prices, get_price
 from analysis.utils import get_env, rebase
 
 UNRAVEL_API_KEY = get_env("UNRAVEL_API_KEY")
@@ -21,10 +21,11 @@ portfolio_historical_weights = get_portfolio_historical_weights(
     end_date=end_date,
 )
 
-underlying = get_price_data(
+underlying = get_prices(
     tickers=portfolio_historical_weights.columns,
     start_date=start_date,
     end_date=end_date,
+    api_key=UNRAVEL_API_KEY,
 )
 
 index_intersection = portfolio_historical_weights.index.intersection(underlying.index)
@@ -34,10 +35,11 @@ underlying = underlying.loc[index_intersection]
 if benchmark_ticker in underlying.columns:
     benchmark = underlying[benchmark_ticker]
 else:
-    benchmark = get_price_data(
+    benchmark = get_price(
         tickers=[benchmark_ticker],
         start_date=start_date,
         end_date=end_date,
+        api_key=UNRAVEL_API_KEY,
     )[benchmark_ticker]
 
 underlying_returns = underlying.pct_change()
@@ -51,5 +53,6 @@ portfolio_cumulative_returns = (1 + portfolio_returns).cumprod()
 plot_backtest_results(
     rebase(portfolio_cumulative_returns), rebase(benchmark), portfolio
 )
+
 
 # %%

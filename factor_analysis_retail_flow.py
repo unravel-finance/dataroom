@@ -1,9 +1,8 @@
 # %%
 
-from unravel_client import get_portfolio_factors_historical, get_tickers
+from unravel_client import get_portfolio_factors_historical, get_prices, get_tickers
 
 from analysis.alphalens import factor_analysis
-from analysis.price import get_price_data
 from analysis.utils import get_env
 
 UNRAVEL_API_KEY = get_env("UNRAVEL_API_KEY")
@@ -16,7 +15,7 @@ historical_factors = get_portfolio_factors_historical(
     id=portfolio, tickers=available_tickers, api_key=UNRAVEL_API_KEY
 )
 
-underlying = get_price_data(tickers=available_tickers)
+underlying = get_prices(tickers=available_tickers, api_key=UNRAVEL_API_KEY)
 
 columns_intersection = historical_factors.columns.intersection(underlying.columns)
 factor_analysis(historical_factors[columns_intersection], underlying)

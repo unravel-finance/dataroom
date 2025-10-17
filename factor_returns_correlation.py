@@ -14,7 +14,7 @@ portfolios = [
     "carry_enhanced.40",
     "retail_flow.40",
     "altair.40",
-    "open_interest_divergence.40",
+    "margin_risk.40",
     "relative_illiquidity.40",
 ]
 
