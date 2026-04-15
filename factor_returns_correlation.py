@@ -10,12 +10,15 @@ from analysis.utils import get_env
 UNRAVEL_API_KEY = get_env("UNRAVEL_API_KEY")
 
 portfolios = [
-    "momentum_enhanced.40",
+    "polaris.40",
     "carry_enhanced.40",
     "retail_flow.40",
     "altair.40",
     "margin_risk.40",
     "relative_illiquidity.40",
+    "mean_reversion.40",
+    "mean_reversion_enhanced.40",
+    "margin_risk.40",
 ]
 
 returns_df = pd.DataFrame(
@@ -42,18 +45,5 @@ sns.heatmap(
 plt.title("Cross-Sectional Returns Correlation Matrix")
 plt.tight_layout()
 plt.show()
-
-# %%
-
-print("Correlation Statistics:")
-print(f"Correlation: {correlation_matrix.iloc[0, 1]:.4f}")
-print(
-    f"Mean return momentum_enhanced.40: {returns_df['momentum_enhanced.40'].mean():.4f}"
-)
-print(f"Mean return carry_enhanced.40: {returns_df['carry_enhanced.40'].mean():.4f}")
-print(
-    f"Volatility momentum_enhanced.40: {returns_df['momentum_enhanced.40'].std():.4f}"
-)
-print(f"Volatility carry_enhanced.40: {returns_df['carry_enhanced.40'].std():.4f}")
 
 # %%
