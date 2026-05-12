@@ -18,6 +18,7 @@ This repository provides transparent, easy-to-understand code examples for:
 - Transparent backtesting implementation with transaction costs
 - Historical portfolio weights retrieval
 - Performance visualization
+- **`altair_ticker_attribution_over_time.py`**: Ticker-level return attribution for Altair across the recent drawdown window and last 30 calendar days
 
 ### ⚡ Live Portfolio Data
 
@@ -92,6 +93,12 @@ This script demonstrates:
 - Getting underlying asset prices
 - Running backtests with transaction costs
 - Plotting performance results
+
+Run the Altair ticker attribution notebook:
+
+```bash
+jupyter notebook altair_ticker_attribution_over_time.ipynb
+```
 
 ### 3. Live Portfolio Weights
 
