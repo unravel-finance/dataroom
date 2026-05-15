@@ -5,7 +5,10 @@ name: Generate Factsheets
 # artefacts back to the repo. Used to populate the DocSend dataroom for the
 # Unravel sales pipeline.
 #
-# Manual dispatch only — the publishing cadence is set by sales, not by CI.
+# Steady-state: manual dispatch only — the publishing cadence is set by sales.
+# Temporary: also runs on push to the sales-pipeline setup branch so we can
+# iterate on the design before merging. Remove the `push:` trigger before
+# merging to main.
 
 on:
   workflow_dispatch:
@@ -19,6 +22,12 @@ on:
         required: false
         type: boolean
         default: false
+
+  # TEMPORARY: remove before merging to main — only here so we can iterate on
+  # the factsheet design on the setup branch.
+  push:
+    branches:
+      - claude/setup-unravel-sales-pipeline-F6ZSG
 
 permissions:
   contents: write
