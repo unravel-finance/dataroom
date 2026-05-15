@@ -19,6 +19,7 @@ import matplotlib.dates as mdates
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
+import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib.gridspec import GridSpec
@@ -205,34 +206,48 @@ def _mean_ic(clean: pd.DataFrame, period: str) -> float:
 
 
 def _plot_mean_return_by_quantile(ax: plt.Axes, clean: pd.DataFrame) -> None:
-    """Overall mean forward return by quantile — demeaned (alpha contribution).
+    """Overall mean forward return by quantile across all forward-return periods.
 
-    `demeaned=True` is AlphaLens' default and what readers expect from a
-    cross-sectional factor chart: each asset's forward return has the
-    universe-wide mean subtracted, so the bars show the factor's alpha, not
-    the underlying market drift.
+    Grouped bars per quantile, one colour per period (1D, 5D, 10D) — matches
+    AlphaLens' plot_quantile_returns_bar exactly. `demeaned=True` so the bars
+    are the alpha contribution, not raw absolute returns.
     """
-    period = _forward_return_period(clean)
     mean_q, _ = alphalens.performance.mean_return_by_quantile(
         clean, by_date=False, demeaned=True
     )
-    values = mean_q[period]
-    quantiles = values.index.tolist()
-    colors = _quantile_palette(len(quantiles))
-    ax.bar(
-        [str(q) for q in quantiles],
-        values.values * 1e4,  # daily returns → bps
-        color=colors,
-        edgecolor="none",
-    )
+    periods = [c for c in mean_q.columns if str(c).endswith("D")]
+    if not periods:
+        periods = list(mean_q.columns)
+
+    quantiles = list(mean_q.index)
+    n_q = len(quantiles)
+    n_p = len(periods)
+    bar_w = 0.8 / max(n_p, 1)
+    x_base = np.arange(n_q)
+    # Distinct colour per period — the reference uses tab10's first three;
+    # we use brand teal + warm accents to keep it on-palette.
+    period_colors = [theme.ACCENT, "#F59E0B", theme.BENCH][:n_p]
+    for i, period in enumerate(periods):
+        offset = (i - (n_p - 1) / 2) * bar_w
+        ax.bar(
+            x_base + offset,
+            mean_q[period].values * 1e4,  # → bps
+            width=bar_w,
+            color=period_colors[i],
+            edgecolor="none",
+            label=str(period),
+        )
     ax.axhline(0, color=theme.HAIR, linewidth=0.6)
+    ax.set_xticks(x_base)
+    ax.set_xticklabels([str(q) for q in quantiles])
     ax.set_title(
-        f"Mean Forward Return by Quantile  ·  demeaned, {period}",
+        "Mean Forward Return by Quantile  ·  demeaned",
         loc="left",
         color=theme.INK,
     )
     ax.set_xlabel("Quantile  (1 = lowest factor value, 5 = highest)")
-    ax.set_ylabel("Alpha (bps / day)")
+    ax.set_ylabel("Alpha (bps / period)")
+    ax.legend(loc="upper left", fontsize=7, ncol=n_p)
     ax.grid(axis="y", linewidth=0.4, alpha=0.6)
     _strip_top_right(ax)
 
@@ -441,26 +456,31 @@ def render_page_two(
     fig = theme.new_page()
     _draw_header(fig, factor)
 
+    # Three rows. Rows 1 and 2 span both columns — the grouped quantile bar
+    # chart needs the width for its 3-period bars, and the log-scale
+    # cumulative-by-quantile chart needs it to show all five lines without
+    # squashing. Row 3 splits into IC and long-short side by side.
     gs = GridSpec(
-        nrows=2,
+        nrows=3,
         ncols=2,
         figure=fig,
         left=MARGIN_X,
         right=RIGHT_X,
         top=0.76,
         bottom=0.090,
-        hspace=0.5,
+        hspace=0.65,
         wspace=0.28,
+        height_ratios=[1.0, 1.0, 1.0],
     )
 
     plotters = [
-        ((0, 0), _plot_mean_return_by_quantile, "Quantile means"),
-        ((0, 1), _plot_ic_with_stats, "IC"),
-        ((1, 0), _plot_cumulative_quantile_returns, "Cumulative quantile"),
-        ((1, 1), _plot_top_minus_bottom, "Long–short"),
+        (gs[0, :], _plot_mean_return_by_quantile, "Quantile means"),
+        (gs[1, :], _plot_cumulative_quantile_returns, "Cumulative quantile"),
+        (gs[2, 0], _plot_ic_with_stats, "IC"),
+        (gs[2, 1], _plot_top_minus_bottom, "Long–short"),
     ]
-    for (r, c), fn, label in plotters:
-        ax = fig.add_subplot(gs[r, c])
+    for slot, fn, label in plotters:
+        ax = fig.add_subplot(slot)
         try:
             fn(ax, clean)
         except Exception as exc:  # noqa: BLE001
