@@ -16,17 +16,19 @@ from scripts.factsheet import theme
 MONTHS = list(calendar.month_abbr)[1:]  # Jan..Dec
 YTD_COL_LABEL = "YTD"
 
-# RdYlGn — same family the reference screenshot uses.
+# Diverging ramp — brand teal on the positive end, red-700 on the negative.
+# Pivots through a near-neutral cream at zero so empty / near-flat months
+# don't visually shout. Endpoint stops match the brand chart palette.
 _DIVERGING = LinearSegmentedColormap.from_list(
     "unravel_diverging",
     [
-        "#B91C1C",  # strong negative
-        "#EF6C4F",
-        "#FCD34D",
-        "#FEF3C7",
-        "#D9F99D",
-        "#86EFAC",
-        "#0F766E",  # strong positive — brand teal
+        "#B91C1C",  # red-700        — strong negative
+        "#EF6C4F",  # warm red
+        "#FCA5A5",  # red-300
+        "#FAFAF9",  # near-white     — zero
+        "#5EEAD4",  # teal-300
+        "#14B8A6",  # teal-500
+        "#0D9488",  # teal-600       — strong positive (brand accent)
     ],
 )
 
@@ -55,19 +57,27 @@ def _build_grid(returns: pd.Series) -> tuple[pd.DataFrame, pd.Series]:
     return grid, ytd
 
 
-def _text_color_for(value: float, vmax: float) -> str:
-    """White text on darker cells, ink on lighter cells."""
-    if pd.isna(value):
-        return theme.MUTED
-    if abs(value) >= 0.55 * vmax:
-        return "#FFFFFF"
-    return theme.INK
+def _text_color_for(cell_rgba: tuple[float, float, float, float]) -> str:
+    """WCAG-style relative luminance: white on dark cells, ink on light cells.
+
+    Sampling the actual cell colour beats thresholding on the numeric value:
+    the value's distance from zero doesn't tell you how dark its colour is
+    (the ramp is asymmetric and we clamp it).
+    """
+    def _channel(v: float) -> float:
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+
+    r, g, b, _a = cell_rgba
+    lum = 0.2126 * _channel(r) + 0.7152 * _channel(g) + 0.0722 * _channel(b)
+    return "#FFFFFF" if lum < 0.45 else theme.INK
 
 
 def _fmt_cell(value: float) -> str:
     if pd.isna(value):
         return ""
-    formatted = f"{value * 100:.2f}"
+    # 1 decimal place — a heatmap is for shape recognition, not data tables;
+    # extra digits add visual density without adding meaning.
+    formatted = f"{value * 100:.1f}"
     return formatted.replace("-", theme.MINUS)
 
 
@@ -86,17 +96,17 @@ def render_monthly_heatmap(
     grid, ytd = _build_grid(returns)
     years = list(grid.index)
 
-    abs_max = float(
-        np.nanmax(
-            np.abs(
-                np.concatenate(
-                    [grid.values.flatten(), ytd.values.astype("float64").flatten()]
-                )
-            )
-        )
-    )
-    if not np.isfinite(abs_max) or abs_max == 0:
-        abs_max = 1.0
+    # Robust vmax: cap at the 95th percentile of |monthly|. A single outlier
+    # like 2021's +180% YTD or a heroic month would otherwise bleach the whole
+    # ramp and make every other cell read as near-zero. Floor at 15% so the
+    # palette still saturates on the typical month.
+    flat_monthly = grid.values.astype("float64").flatten()
+    flat_monthly = flat_monthly[~np.isnan(flat_monthly)]
+    if flat_monthly.size:
+        p95 = float(np.percentile(np.abs(flat_monthly), 95))
+    else:
+        p95 = 0.0
+    abs_max = max(0.15, p95)
     norm = Normalize(vmin=-abs_max, vmax=abs_max)
 
     left, bottom, width, height = rect
@@ -148,14 +158,19 @@ def render_monthly_heatmap(
     for r in range(rows):
         for c in range(cols):
             value = matrix[r, c]
+            if pd.isna(value):
+                continue
+            cell_rgba = _DIVERGING(norm(value))
+            # Right-align so column values line up visually even with
+            # proportional figures — mpl can't toggle OpenType tnum at runtime.
             ax_grid.text(
-                c,
+                c + 0.42,
                 r,
                 _fmt_cell(value),
-                ha="center",
+                ha="right",
                 va="center",
                 fontsize=7.5,
-                color=_text_color_for(value, abs_max),
+                color=_text_color_for(cell_rgba),
             )
 
     ax_grid.set_xticks(range(cols))
@@ -182,7 +197,7 @@ def render_monthly_heatmap(
         # Faint background tint based on sign so the column still carries colour
         # cue but doesn't merge with December.
         if pd.notna(value):
-            tint = "#F0F9F4" if value >= 0 else "#FDECEC"
+            tint = theme.ACCENT_TINT if value >= 0 else theme.NEG_TINT
             ax_ytd.add_patch(
                 Rectangle(
                     (-0.5, r - 0.5),
@@ -192,15 +207,22 @@ def render_monthly_heatmap(
                     edgecolor="none",
                 )
             )
+        # Coloured numerals reinforce the sign at-a-glance.
+        if pd.isna(value):
+            text_color = theme.MUTED
+        elif value >= 0:
+            text_color = theme.ACCENT
+        else:
+            text_color = theme.NEG
         ax_ytd.text(
-            0,
+            0.40,
             r,
             _fmt_cell(value),
-            ha="center",
+            ha="right",
             va="center",
             fontsize=8,
             weight="bold",
-            color=theme.INK if pd.notna(value) else theme.MUTED,
+            color=text_color,
         )
 
     ax_ytd.set_xlim(-0.5, 0.5)

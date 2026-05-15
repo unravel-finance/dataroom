@@ -9,6 +9,7 @@ Reading order (per the Claude Design critique):
 
 from __future__ import annotations
 
+import textwrap
 import warnings
 from datetime import date as _date
 from pathlib import Path
@@ -94,17 +95,19 @@ def _draw_header(fig: plt.Figure, factor: Factor) -> None:
     fig.text(
         MARGIN_X,
         0.852,
-        (
-            "Diagnostics on the raw factor values, independent of portfolio "
-            "construction. The quintile and IC plots show whether the signal "
-            "cross-sectionally separates outperformers from underperformers — "
-            "and how consistently."
+        textwrap.fill(
+            (
+                "Diagnostics on the raw factor values, independent of portfolio "
+                "construction. The quintile and IC plots show whether the signal "
+                "cross-sectionally separates outperformers from underperformers — "
+                "and how consistently."
+            ),
+            width=110,
         ),
         fontsize=10,
         color=theme.SUB_INK,
         va="top",
         linespacing=1.55,
-        wrap=True,
     )
 
 

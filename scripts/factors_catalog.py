@@ -26,6 +26,11 @@ class Factor:
     default_universe: str
     short_description: str
     long_description: str
+    # Optional taxonomy / sales copy — drives the page 1 hero. Falls back to
+    # safe defaults when absent so older catalog entries still render.
+    category: str = ""
+    badges: tuple[str, ...] = ()
+    effect: str = ""
 
     @property
     def detail_url(self) -> str:
@@ -47,6 +52,11 @@ def load_factors() -> list[Factor]:
             default_universe=str(entry["default_universe"]),
             short_description=_short_for(entry),
             long_description=entry["long_description"].strip(),
+            category=str(entry.get("category", "")).strip(),
+            badges=tuple(
+                str(b).strip() for b in (entry.get("badges") or []) if str(b).strip()
+            ),
+            effect=str(entry.get("effect", "")).strip().replace("\n", " "),
         )
         for entry in raw["factors"]
     ]
