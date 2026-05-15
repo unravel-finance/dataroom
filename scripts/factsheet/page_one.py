@@ -527,35 +527,50 @@ def render_page_one(
     overview_top = 0.712 if factor.effect else 0.790
     _draw_overview(fig, factor, y_top=overview_top, y_bot=0.475)
 
-    # Performance section. The sub_label makes the framing of the heatmap
-    # unambiguous: this is an *example portfolio* you could construct from
-    # the raw factor, not the factor itself.
+    # ONE unified section \u2014 the heatmap and KPI strip are two views of the
+    # same example portfolio. The section header sets the construction
+    # context once; the inline labels just mark the two views below.
     _draw_section_eyebrow(
         fig,
         y=0.485,
-        label="Monthly returns",
+        label=f"Example Top {factor.default_universe} cross-sectional portfolio",
         right_label=f"{stats.start:%b %Y} \u2014 {stats.end:%b %Y}",
         sub_label=(
-            f"Example Top {factor.default_universe} cross-sectional portfolio "
-            "constructed from the raw factor \u2014 long the top-ranked names, "
-            "short the bottom, rebalanced daily."
+            "Constructed from the raw factor \u2014 long the top-ranked "
+            "names, short the bottom, rebalanced daily. Monthly returns "
+            "and risk & return metrics shown below."
         ),
+    )
+
+    # View 1 \u2014 monthly returns. Inline caption, no second divider.
+    fig.text(
+        MARGIN_X,
+        0.444,
+        "MONTHLY RETURNS",
+        fontsize=7,
+        color=theme.MUTED,
+        weight="semibold",
+        va="top",
     )
     render_monthly_heatmap(
         fig,
         returns,
-        rect=(MARGIN_X, 0.300, COL_WIDTH, 0.155),
+        rect=(MARGIN_X, 0.282, COL_WIDTH, 0.150),
         title="",
     )
 
-    # Risk & return strip. Pushed down enough that the section rule clears the
-    # heatmap's x-axis tick row.
-    _draw_section_eyebrow(
-        fig,
-        y=0.255,
-        label="Risk & return",
+    # View 2 \u2014 risk & return KPI strip. Same inline-caption treatment as
+    # the heatmap above, no rule \u2014 they're not separate sections.
+    fig.text(
+        MARGIN_X,
+        0.244,
+        "RISK & RETURN",
+        fontsize=7,
+        color=theme.MUTED,
+        weight="semibold",
+        va="top",
     )
-    _draw_kpi_strip(fig, stats, y=0.150)
+    _draw_kpi_strip(fig, stats, y=0.143)
 
     _draw_disclaimer_and_footer(fig, factor)
     return fig
