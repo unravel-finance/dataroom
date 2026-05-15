@@ -1,14 +1,7 @@
-"""Page 1 of the factsheet — narrative + monthly-returns performance grid.
+"""Page 1 — narrative + monthly returns heatmap + KPI strip.
 
-Layout (top-down):
-    1. Header band: logo on the left, "Factor Factsheet" eyebrow on the right.
-    2. Title block: factor name, single-line tagline, illustrative-portfolio
-       disclaimer.
-    3. The Edge: a pull-quote describing what the factor captures.
-    4. Overview: the long-form description.
-    5. Monthly Returns heatmap.
-    6. KPI strip (CAGR / Vol / Sharpe / Max DD / Sortino / Calmar).
-    7. Footer with site URL.
+Hierarchy:
+    eyebrow → title → subtitle → overview → divider → heatmap → KPI strip → footer
 """
 
 from __future__ import annotations
@@ -20,7 +13,6 @@ from pathlib import Path
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import pandas as pd
-from matplotlib.patches import Rectangle
 
 from scripts.factors_catalog import Factor
 from scripts.factsheet import metrics, theme
@@ -29,13 +21,12 @@ from scripts.factsheet.heatmap import render_monthly_heatmap
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 LOGO_PNG = REPO_ROOT / "branding" / "unravel-logo.png"
 
-# ---- Layout grid (figure-fraction coordinates) ----
 MARGIN_X = 0.07
 RIGHT_X = 1.0 - MARGIN_X
+PROSE_COL_WIDTH_CH = 78  # ~65 cpl plus a bit of slack for hyphenation
 
 
 def _draw_logo(fig: plt.Figure) -> None:
-    """Place the combined Unravel mark + wordmark PNG in the top-left."""
     if not LOGO_PNG.exists():
         fig.text(
             MARGIN_X,
@@ -47,30 +38,37 @@ def _draw_logo(fig: plt.Figure) -> None:
             va="center",
         )
         return
-
     img = mpimg.imread(LOGO_PNG)
-    # Height of the logo block in figure fraction.
-    logo_h = 0.024
-    aspect = img.shape[1] / img.shape[0]  # width / height in pixels
+    logo_h = 0.022
+    aspect = img.shape[1] / img.shape[0]
     logo_w = logo_h * (theme.PAGE_H_IN / theme.PAGE_W_IN) * aspect
-    ax_logo = fig.add_axes(
-        (MARGIN_X, 0.960 - logo_h / 2, logo_w, logo_h)
-    )
+    ax_logo = fig.add_axes((MARGIN_X, 0.960 - logo_h / 2, logo_w, logo_h))
     ax_logo.imshow(img, interpolation="bilinear")
     ax_logo.axis("off")
 
 
-def _draw_header(fig: plt.Figure) -> None:
+def _wrap(text: str, width: int) -> str:
+    return textwrap.fill(text, width=width)
+
+
+def _wrap_paragraphs(text: str, width: int) -> str:
+    return "\n\n".join(
+        _wrap(p.strip().replace("\n", " "), width)
+        for p in text.split("\n\n")
+        if p.strip()
+    )
+
+
+def _draw_header(fig: plt.Figure, factor: Factor) -> None:
     _draw_logo(fig)
     fig.text(
         RIGHT_X,
-        0.963,
-        "Factor Factsheet",
-        fontsize=8.5,
+        0.960,
+        f"Generated {_date.today():%b %Y}",
+        fontsize=8,
         color=theme.MUTED,
         ha="right",
         va="center",
-        weight="medium",
     )
     fig.add_artist(
         plt.Line2D(
@@ -79,59 +77,64 @@ def _draw_header(fig: plt.Figure) -> None:
     )
 
 
-def _wrap(text: str, width: int) -> str:
-    return textwrap.fill(text, width=width)
-
-
-def _wrap_paragraphs(text: str, width: int) -> str:
-    return "\n\n".join(_wrap(p.strip().replace("\n", " "), width) for p in text.split("\n\n") if p.strip())
-
-
 def _draw_title_block(fig: plt.Figure, factor: Factor) -> None:
+    # Eyebrow: tiny uppercase metadata above the title.
+    fig.text(
+        MARGIN_X,
+        0.905,
+        f"FACTOR FACTSHEET  ·  {factor.portfolio_id.upper()}  ·  TOP 40 UNIVERSE",
+        fontsize=7.5,
+        color=theme.MUTED,
+        weight="semibold",
+        va="bottom",
+        # Approximate letter-spacing via spaces in the source string is ugly;
+        # we lean on the all-caps + semi-bold + colour to make the eyebrow read
+        # as metadata rather than as a sentence.
+    )
     fig.text(
         MARGIN_X,
         0.895,
         factor.name,
-        fontsize=28,
+        fontsize=42,
         fontweight="bold",
         color=theme.INK,
         va="top",
+        family=theme.display_font(),
     )
     fig.text(
         MARGIN_X,
-        0.853,
-        _wrap(factor.short_description, width=85),
-        fontsize=11,
+        0.823,
+        _wrap(factor.short_description, width=70),
+        fontsize=11.5,
         color=theme.SUB_INK,
-        va="top",
-        linespacing=1.4,
-    )
-
-
-def _draw_disclaimer(fig: plt.Figure, y: float) -> None:
-    """Make explicit that the displayed portfolio is illustrative."""
-    text = (
-        "All performance figures below are for an illustrative single-factor "
-        "portfolio constructed from this factor over the Top 40 universe — "
-        "long the highest-ranked assets, short the lowest, rebalanced daily. "
-        "It is not a tradable product; we publish it to demonstrate the edge "
-        "the underlying factor captures in isolation."
-    )
-    fig.text(
-        MARGIN_X,
-        y,
-        _wrap(text, width=110),
-        fontsize=8.5,
-        style="italic",
-        color=theme.MUTED,
         va="top",
         linespacing=1.45,
     )
 
 
-def _draw_section_label(fig: plt.Figure, x: float, y: float, label: str) -> None:
+def _draw_overview(fig: plt.Figure, factor: Factor, y: float) -> None:
     fig.text(
-        x,
+        MARGIN_X,
+        y,
+        _wrap_paragraphs(factor.long_description, width=PROSE_COL_WIDTH_CH),
+        fontsize=9,
+        color=theme.SUB_INK,
+        va="top",
+        linespacing=1.5,
+    )
+
+
+def _draw_section_eyebrow(
+    fig: plt.Figure, y: float, label: str, right_label: str = ""
+) -> None:
+    """Small-caps section divider — title left, optional caption right, thin rule."""
+    fig.add_artist(
+        plt.Line2D(
+            [MARGIN_X, RIGHT_X], [y + 0.012, y + 0.012], color=theme.HAIR, linewidth=0.6
+        )
+    )
+    fig.text(
+        MARGIN_X,
         y,
         label,
         fontsize=8,
@@ -139,22 +142,20 @@ def _draw_section_label(fig: plt.Figure, x: float, y: float, label: str) -> None
         weight="semibold",
         va="top",
     )
-
-
-def _draw_overview(fig: plt.Figure, factor: Factor, y_label: float, y_body: float) -> None:
-    _draw_section_label(fig, MARGIN_X, y_label, "OVERVIEW")
-    fig.text(
-        MARGIN_X,
-        y_body,
-        _wrap_paragraphs(factor.long_description, width=108),
-        fontsize=9,
-        color=theme.SUB_INK,
-        va="top",
-        linespacing=1.55,
-    )
+    if right_label:
+        fig.text(
+            RIGHT_X,
+            y,
+            right_label,
+            fontsize=8,
+            color=theme.MUTED,
+            va="top",
+            ha="right",
+        )
 
 
 def _draw_kpi_strip(fig: plt.Figure, stats: metrics.Stats, y: float) -> None:
+    """KPI strip — label/value ratio ~1:2.8 so the value scans fast."""
     cards = [
         ("CAGR", metrics.fmt_pct(stats.cagr)),
         ("Volatility", metrics.fmt_pct(stats.annual_vol)),
@@ -166,10 +167,9 @@ def _draw_kpi_strip(fig: plt.Figure, stats: metrics.Stats, y: float) -> None:
     n = len(cards)
     width = RIGHT_X - MARGIN_X
     card_w = width / n
-    card_h = 0.052
+    card_h = 0.072
     for i, (label, value) in enumerate(cards):
         x = MARGIN_X + i * card_w
-        # Subtle column separators rather than card chrome — feels more designed.
         if i > 0:
             fig.add_artist(
                 plt.Line2D(
@@ -181,44 +181,61 @@ def _draw_kpi_strip(fig: plt.Figure, stats: metrics.Stats, y: float) -> None:
             )
         fig.text(
             x + card_w / 2,
-            y + card_h * 0.72,
-            label,
-            fontsize=7.5,
+            y + card_h * 0.80,
+            label.upper(),
+            fontsize=8,
             color=theme.MUTED,
             ha="center",
             va="center",
-            weight="medium",
+            weight="semibold",
         )
         fig.text(
             x + card_w / 2,
-            y + card_h * 0.32,
+            y + card_h * 0.36,
             value,
-            fontsize=16,
+            fontsize=26,
             color=theme.INK,
             ha="center",
             va="center",
             weight="bold",
+            family=theme.display_font(),
         )
-    # Top + bottom rules to anchor the strip
     fig.add_artist(
         plt.Line2D(
-            [MARGIN_X, RIGHT_X], [y + card_h, y + card_h], color=theme.HAIR, linewidth=0.5
+            [MARGIN_X, RIGHT_X], [y + card_h, y + card_h], color=theme.HAIR, linewidth=0.6
         )
     )
     fig.add_artist(
-        plt.Line2D([MARGIN_X, RIGHT_X], [y, y], color=theme.HAIR, linewidth=0.5)
+        plt.Line2D([MARGIN_X, RIGHT_X], [y, y], color=theme.HAIR, linewidth=0.6)
     )
 
 
-def _draw_footer(fig: plt.Figure, factor: Factor) -> None:
+def _draw_disclaimer_and_footer(fig: plt.Figure, factor: Factor) -> None:
+    """Demoted disclaimer + footer. Disclaimer reads as a footnote, not a paragraph."""
+    note = (
+        "Note — Performance shown is for an illustrative single-factor portfolio "
+        "(long top-ranked, short bottom-ranked across the Top 40 universe, rebalanced "
+        "daily). Provided to demonstrate the underlying factor's signal; not a "
+        "tradable product."
+    )
+    fig.text(
+        MARGIN_X,
+        0.057,
+        _wrap(note, width=140),
+        fontsize=7.5,
+        style="italic",
+        color=theme.MUTED,
+        va="top",
+        linespacing=1.45,
+    )
     fig.add_artist(
         plt.Line2D(
-            [MARGIN_X, RIGHT_X], [0.052, 0.052], color=theme.HAIR, linewidth=0.5
+            [MARGIN_X, RIGHT_X], [0.029, 0.029], color=theme.HAIR, linewidth=0.5
         )
     )
     fig.text(
         MARGIN_X,
-        0.032,
+        0.016,
         factor.detail_url,
         fontsize=7.5,
         color=theme.SUB_INK,
@@ -227,9 +244,9 @@ def _draw_footer(fig: plt.Figure, factor: Factor) -> None:
     )
     fig.text(
         RIGHT_X,
-        0.032,
-        f"Page 1 of 2  ·  Generated {_date.today():%b %Y}",
-        fontsize=7,
+        0.016,
+        f"Page 1 of 2  ·  {_date.today():%b %Y}",
+        fontsize=7.5,
         color=theme.MUTED,
         ha="right",
         va="center",
@@ -240,40 +257,30 @@ def render_page_one(
     factor: Factor, returns: pd.Series, stats: metrics.Stats
 ) -> plt.Figure:
     fig = theme.new_page()
-    _draw_header(fig)
+    _draw_header(fig, factor)
     _draw_title_block(fig, factor)
-    _draw_disclaimer(fig, y=0.795)
 
-    # Overview body fills the upper-middle of the page.
-    _draw_overview(fig, factor, y_label=0.715, y_body=0.695)
+    # Overview body — wraps to ~78 cpl. With 9pt body and 1.5 leading this
+    # fits the longest description in the catalogue inside the upper band.
+    _draw_overview(fig, factor, y=0.770)
 
-    # Heatmap (centerpiece)
-    fig.text(
-        MARGIN_X,
-        0.345,
-        "MONTHLY RETURNS (%)",
-        fontsize=8,
-        color=theme.MUTED,
-        weight="semibold",
-        va="top",
-    )
-    fig.text(
-        RIGHT_X,
-        0.345,
-        f"{stats.start:%b %Y} – {stats.end:%b %Y}",
-        fontsize=7.5,
-        color=theme.MUTED,
-        ha="right",
-        va="top",
+    # Performance section
+    _draw_section_eyebrow(
+        fig,
+        y=0.395,
+        label="PERFORMANCE",
+        right_label=f"{stats.start:%b %Y} – {stats.end:%b %Y}",
     )
     render_monthly_heatmap(
         fig,
         returns,
-        rect=(MARGIN_X, 0.155, RIGHT_X - MARGIN_X, 0.17),
+        rect=(MARGIN_X, 0.205, RIGHT_X - MARGIN_X, 0.175),
         title="",
     )
 
-    # KPI strip below the heatmap
-    _draw_kpi_strip(fig, stats, y=0.085)
-    _draw_footer(fig, factor)
+    # Risk & return strip
+    _draw_section_eyebrow(fig, y=0.182, label="RISK & RETURN")
+    _draw_kpi_strip(fig, stats, y=0.100)
+
+    _draw_disclaimer_and_footer(fig, factor)
     return fig

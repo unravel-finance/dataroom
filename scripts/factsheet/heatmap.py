@@ -9,13 +9,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.colors import LinearSegmentedColormap, Normalize
+from matplotlib.patches import Rectangle
 
 from scripts.factsheet import theme
 
 MONTHS = list(calendar.month_abbr)[1:]  # Jan..Dec
 YTD_COL_LABEL = "YTD"
 
-# RdYlGn — same family the user's reference screenshot uses.
+# RdYlGn — same family the reference screenshot uses.
 _DIVERGING = LinearSegmentedColormap.from_list(
     "unravel_diverging",
     [
@@ -66,7 +67,8 @@ def _text_color_for(value: float, vmax: float) -> str:
 def _fmt_cell(value: float) -> str:
     if pd.isna(value):
         return ""
-    return f"{value * 100:.2f}"
+    formatted = f"{value * 100:.2f}"
+    return formatted.replace("-", theme.MINUS)
 
 
 def render_monthly_heatmap(
@@ -76,7 +78,11 @@ def render_monthly_heatmap(
     *,
     title: str = "Monthly Returns (%)",
 ) -> None:
-    """Draw a years × (12 months + YTD) heatmap inside the given figure rect."""
+    """Draw a years × (12 months | YTD) heatmap inside the given figure rect.
+
+    The YTD column is visually separated from the months: small gutter, white
+    background, ruled outline — it's a summary, not a 13th month.
+    """
     grid, ytd = _build_grid(returns)
     years = list(grid.index)
 
@@ -96,7 +102,6 @@ def render_monthly_heatmap(
     left, bottom, width, height = rect
 
     if title:
-        # Title above the grid.
         fig.text(
             left,
             bottom + height + 0.022,
@@ -107,14 +112,14 @@ def render_monthly_heatmap(
             va="bottom",
         )
 
-    # Two axes: the months grid and the narrow YTD column. They share the
-    # same y-axis so years line up.
-    months_w = width * (12 / 13.4)  # leave space for YTD column
-    gap = width * 0.012
-    ytd_w = width - months_w - gap
+    # Months grid takes ~12/13 of the width; YTD column lives in the remaining
+    # slot with a clear gutter between them.
+    months_w = width * (12 / 13.6)
+    gutter = width * 0.022
+    ytd_w = width - months_w - gutter
 
     ax_grid = fig.add_axes((left, bottom, months_w, height))
-    ax_ytd = fig.add_axes((left + months_w + gap, bottom, ytd_w, height))
+    ax_ytd = fig.add_axes((left + months_w + gutter, bottom, ytd_w, height))
 
     # ---- Months grid ----
     matrix = grid.values.astype("float64")
@@ -127,7 +132,7 @@ def render_monthly_heatmap(
         origin="upper",
         interpolation="nearest",
     )
-    # Empty cells (NaN) need a fill — overlay light grey for missing months.
+    # Empty cells (NaN) — overlay light grey for missing months.
     nan_mask = np.isnan(matrix)
     if nan_mask.any():
         overlay = np.where(nan_mask, 1.0, np.nan)
@@ -140,7 +145,6 @@ def render_monthly_heatmap(
             alpha=1.0,
         )
 
-    # Cell labels + thin separators
     for r in range(rows):
         for c in range(cols):
             value = matrix[r, c]
@@ -153,15 +157,18 @@ def render_monthly_heatmap(
                 fontsize=7.5,
                 color=_text_color_for(value, abs_max),
             )
+
     ax_grid.set_xticks(range(cols))
     ax_grid.set_xticklabels(grid.columns, fontsize=7.5, color=theme.MUTED)
     ax_grid.set_yticks(range(rows))
-    ax_grid.set_yticklabels(years, fontsize=7.5, color=theme.MUTED)
+    # Drop the "20" prefix on year labels — repetitive after the first row.
+    ax_grid.set_yticklabels(
+        [f"’{y % 100:02d}" for y in years], fontsize=8, color=theme.MUTED
+    )
     ax_grid.tick_params(axis="both", which="both", length=0)
     for spine in ax_grid.spines.values():
         spine.set_visible(False)
 
-    # Inner grid lines for cell separation
     for x in range(cols + 1):
         ax_grid.axvline(x - 0.5, color="white", linewidth=1.2)
     for y in range(rows + 1):
@@ -169,31 +176,45 @@ def render_monthly_heatmap(
 
     # ---- YTD column ----
     ytd_aligned = pd.Series([ytd.get(y, np.nan) for y in years], index=years).values
-    ytd_matrix = ytd_aligned.reshape(-1, 1)
-    ax_ytd.imshow(
-        ytd_matrix,
-        aspect="auto",
-        cmap=_DIVERGING,
-        norm=norm,
-        origin="upper",
-        interpolation="nearest",
-    )
+    # Render with a white background and bold ink text — no heatmap fill.
+    # We draw a single Rectangle for the panel and let text float on top.
     for r, value in enumerate(ytd_aligned):
+        # Faint background tint based on sign so the column still carries colour
+        # cue but doesn't merge with December.
+        if pd.notna(value):
+            tint = "#F0F9F4" if value >= 0 else "#FDECEC"
+            ax_ytd.add_patch(
+                Rectangle(
+                    (-0.5, r - 0.5),
+                    1.0,
+                    1.0,
+                    facecolor=tint,
+                    edgecolor="none",
+                )
+            )
         ax_ytd.text(
             0,
             r,
             _fmt_cell(value),
             ha="center",
             va="center",
-            fontsize=7.5,
+            fontsize=8,
             weight="bold",
-            color=_text_color_for(value, abs_max),
+            color=theme.INK if pd.notna(value) else theme.MUTED,
         )
+
+    ax_ytd.set_xlim(-0.5, 0.5)
+    ax_ytd.set_ylim(rows - 0.5, -0.5)
     ax_ytd.set_xticks([0])
-    ax_ytd.set_xticklabels([YTD_COL_LABEL], fontsize=7.5, color=theme.MUTED)
+    ax_ytd.set_xticklabels([YTD_COL_LABEL], fontsize=7.5, color=theme.MUTED, weight="medium")
     ax_ytd.set_yticks([])
     ax_ytd.tick_params(axis="both", which="both", length=0)
-    for spine in ax_ytd.spines.values():
-        spine.set_visible(False)
+
+    # Outline the YTD column to separate it clearly from the heatmap.
+    for spine_name, spine in ax_ytd.spines.items():
+        spine.set_visible(True)
+        spine.set_color(theme.HAIR)
+        spine.set_linewidth(0.7)
+
     for y in range(len(years) + 1):
-        ax_ytd.axhline(y - 0.5, color="white", linewidth=1.2)
+        ax_ytd.axhline(y - 0.5, color=theme.HAIR, linewidth=0.5)

@@ -98,16 +98,19 @@ def compute_stats(returns: pd.Series) -> Stats:
 def fmt_pct(x: float, digits: int = 1) -> str:
     if x is None or np.isnan(x):
         return "—"
-    return f"{x * 100:.{digits}f}%"
+    formatted = f"{x * 100:.{digits}f}%"
+    return formatted.replace("-", "−")
 
 
 def fmt_signed_pct(x: float, digits: int = 1) -> str:
     if x is None or np.isnan(x):
         return "—"
-    return f"{x * 100:+.{digits}f}%"
+    formatted = f"{x * 100:+.{digits}f}%"
+    return formatted.replace("-", "−").replace("+", "+")
 
 
 def fmt_ratio(x: float, digits: int = 2) -> str:
     if x is None or np.isnan(x):
         return "—"
-    return f"{x:.{digits}f}"
+    formatted = f"{x:.{digits}f}"
+    return formatted.replace("-", "−")
