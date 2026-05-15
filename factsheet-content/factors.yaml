@@ -78,33 +78,40 @@ factors:
       The factor is available (point-in-time) with hourly updates, 5 minutes
       past the hour (UTC).
 
+  # Copy below is mirrored verbatim from
+  # unravel-router/apps/alpha/config/portfolios.config.ts. Keep them in sync
+  # when the portfolio definitions change — that file is the source of truth.
   - id: retail_flow
     name: Retail Flow
     portfolio_id: retail_flow.40
     default_universe: "40"
-    tagline: >-
-      A cross-sectional factor that measures retail participation in each
-      asset and systematically fades the crowd.
-    effect: >-
-      Retail concentration is one of the most reliable contrarian signals in
-      crypto. Assets whose order books are dominated by small, undirected
-      retail flow consistently overreact — and tend to give back those moves
-      over the following days. Retail Flow ranks the universe by that
-      concentration and shorts the heaviest, longs the lightest.
+    short_description: >-
+      Quantifies retail money flow, positioning, and activity and
+      systematically takes contrarian positions.
     long_description: |
-      Retail Flow identifies the slice of trading activity that comes from
-      retail participants and uses it as a cross-sectional ranking signal.
-      Individual executed trades are sourced from the major exchanges and
-      classified by order size, type and counterparty profile, separating the
-      retail flow from institutional flow.
+      "Retail Flow" cross-sectional factor is designed to measure and respond
+      to retail investor activity.
 
-      Trade imbalances on the retail-only stream are quantified through five
-      independent techniques. Their outputs are normalised and combined as a
-      simple unweighted ensemble — no optimisation, no parameter fitting — so
-      the signal is robust out of sample.
+      By analyzing individual executed trades sourced from exchanges, the
+      strategy identifies assets heavily influenced by retail participation.
+      It then takes systematically contrarian positions, seeking to exploit
+      predictable patterns of overreaction and herding behavior.
 
-      Live updates are published point-in-time, hourly, five minutes past the
-      hour (UTC).
+      Order sizes and types are utilized to differentiate between retail and
+      institutional activity.
+      To quantify trade imbalances on the filtered trades, five distinct
+      techniques are employed, their outputs are normalized and combined in
+      an ensemble approach, without any optimization or parameter fitting.
+
+      The asset universe consists of the most liquid and actively traded
+      assets, identified on rolling basis - various techniques employed to
+      keep it both stable and relevant, as well as survivorship-bias free.
+
+      To balance each asset's risk contribution, positions are scaled
+      according to the inverse of their rolling volatility.
+
+      The factor is available (point-in-time) with hourly updates, 5 minutes
+      past the hour (UTC).
 
   - id: mean_reversion_enhanced
     name: Enhanced Mean Reversion

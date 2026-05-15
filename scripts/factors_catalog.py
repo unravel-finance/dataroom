@@ -1,4 +1,10 @@
-"""Load the single-factor portfolio catalog used for CSV/PDF export."""
+"""Load the single-factor portfolio catalog used for CSV/PDF export.
+
+The narrative copy is mirrored verbatim from
+`apps/alpha/config/portfolios.config.ts` in the unravel-router repo — that
+file is the source of truth. Keep them in sync manually until we wire up
+automated extraction.
+"""
 
 from __future__ import annotations
 
@@ -18,19 +24,16 @@ class Factor:
     name: str
     portfolio_id: str
     default_universe: str
-    tagline: str
-    effect: str
+    short_description: str
     long_description: str
 
     @property
     def detail_url(self) -> str:
-        """Public detail page on unravel.finance for this portfolio variant."""
         return f"{SITE_BASE_URL}/portfolio/{self.portfolio_id}"
 
 
-def _tagline_for(entry: dict) -> str:
-    """Tagline is the new field — fall back to legacy short_description."""
-    text = entry.get("tagline") or entry.get("short_description") or ""
+def _short_for(entry: dict) -> str:
+    text = entry.get("short_description") or entry.get("tagline") or ""
     return text.strip()
 
 
@@ -42,8 +45,7 @@ def load_factors() -> list[Factor]:
             name=entry["name"],
             portfolio_id=entry["portfolio_id"],
             default_universe=str(entry["default_universe"]),
-            tagline=_tagline_for(entry),
-            effect=entry["effect"].strip(),
+            short_description=_short_for(entry),
             long_description=entry["long_description"].strip(),
         )
         for entry in raw["factors"]

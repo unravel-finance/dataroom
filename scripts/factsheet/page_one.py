@@ -35,33 +35,29 @@ RIGHT_X = 1.0 - MARGIN_X
 
 
 def _draw_logo(fig: plt.Figure) -> None:
-    """Place the Unravel brand mark + wordmark in the top-left of the page."""
-    wordmark_x = MARGIN_X
-
-    if LOGO_PNG.exists():
-        img = mpimg.imread(LOGO_PNG)
-        # Square mark — width/height in figure fraction calibrated so the
-        # rendered logo is ~0.55in (visible without dominating the page).
-        mark_h = 0.046
-        mark_w = mark_h * (theme.PAGE_H_IN / theme.PAGE_W_IN)
-        # Vertically centred on y=0.962 (the wordmark baseline-centre).
-        ax_logo = fig.add_axes(
-            (MARGIN_X, 0.962 - mark_h / 2, mark_w, mark_h)
+    """Place the combined Unravel mark + wordmark PNG in the top-left."""
+    if not LOGO_PNG.exists():
+        fig.text(
+            MARGIN_X,
+            0.960,
+            "Unravel",
+            fontsize=14,
+            fontweight="bold",
+            color=theme.INK,
+            va="center",
         )
-        ax_logo.imshow(img, interpolation="bilinear")
-        ax_logo.axis("off")
-        wordmark_x = MARGIN_X + mark_w + 0.012
+        return
 
-    fig.text(
-        wordmark_x,
-        0.962,
-        "Unravel",
-        fontsize=15,
-        fontweight="bold",
-        color=theme.INK,
-        va="center",
-        ha="left",
+    img = mpimg.imread(LOGO_PNG)
+    # Height of the logo block in figure fraction.
+    logo_h = 0.024
+    aspect = img.shape[1] / img.shape[0]  # width / height in pixels
+    logo_w = logo_h * (theme.PAGE_H_IN / theme.PAGE_W_IN) * aspect
+    ax_logo = fig.add_axes(
+        (MARGIN_X, 0.960 - logo_h / 2, logo_w, logo_h)
     )
+    ax_logo.imshow(img, interpolation="bilinear")
+    ax_logo.axis("off")
 
 
 def _draw_header(fig: plt.Figure) -> None:
@@ -104,7 +100,7 @@ def _draw_title_block(fig: plt.Figure, factor: Factor) -> None:
     fig.text(
         MARGIN_X,
         0.853,
-        _wrap(factor.tagline, width=85),
+        _wrap(factor.short_description, width=85),
         fontsize=11,
         color=theme.SUB_INK,
         va="top",
@@ -145,20 +141,6 @@ def _draw_section_label(fig: plt.Figure, x: float, y: float, label: str) -> None
     )
 
 
-def _draw_effect(fig: plt.Figure, factor: Factor, y_label: float, y_body: float) -> None:
-    _draw_section_label(fig, MARGIN_X, y_label, "THE EDGE")
-    fig.text(
-        MARGIN_X,
-        y_body,
-        _wrap(factor.effect, width=98),
-        fontsize=10.5,
-        color=theme.INK,
-        weight="medium",
-        va="top",
-        linespacing=1.45,
-    )
-
-
 def _draw_overview(fig: plt.Figure, factor: Factor, y_label: float, y_body: float) -> None:
     _draw_section_label(fig, MARGIN_X, y_label, "OVERVIEW")
     fig.text(
@@ -168,7 +150,7 @@ def _draw_overview(fig: plt.Figure, factor: Factor, y_label: float, y_body: floa
         fontsize=9,
         color=theme.SUB_INK,
         va="top",
-        linespacing=1.5,
+        linespacing=1.55,
     )
 
 
@@ -260,11 +242,10 @@ def render_page_one(
     fig = theme.new_page()
     _draw_header(fig)
     _draw_title_block(fig, factor)
-    _draw_disclaimer(fig, y=0.798)
+    _draw_disclaimer(fig, y=0.795)
 
-    # Narrative columns
-    _draw_effect(fig, factor, y_label=0.735, y_body=0.715)
-    _draw_overview(fig, factor, y_label=0.605, y_body=0.585)
+    # Overview body fills the upper-middle of the page.
+    _draw_overview(fig, factor, y_label=0.715, y_body=0.695)
 
     # Heatmap (centerpiece)
     fig.text(
