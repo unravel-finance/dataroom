@@ -516,8 +516,11 @@ def render_page_one(
     _draw_hero(fig, factor, returns)
     _draw_pull_quote(fig, factor)
 
-    # Overview (2 columns).
-    _draw_overview(fig, factor, y_top=0.712, y_bot=0.475)
+    # Overview starts immediately below the pull-quote slot when present,
+    # otherwise right under the hero. Avoids a 1in-tall dead zone for
+    # catalog entries (like retail_flow) with no `effect` populated.
+    overview_top = 0.712 if factor.effect else 0.790
+    _draw_overview(fig, factor, y_top=overview_top, y_bot=0.475)
 
     # Performance section. The sub_label is the professional context line
     # for the illustrative single-factor portfolio whose monthly returns the

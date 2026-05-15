@@ -57,22 +57,33 @@ def _clean_factor_data(
 
 
 def _draw_header(fig: plt.Figure, factor: Factor) -> None:
-    """Compressed single-line header — page 1 already introduced the factor."""
+    """Header — mirrors page 1: logo + Unravel wordmark left, page label right."""
+    wordmark_x = MARGIN_X
     if LOGO_PNG.exists():
         img = mpimg.imread(LOGO_PNG)
-        logo_h = 0.016
+        logo_h = 0.022
         aspect = img.shape[1] / img.shape[0]
         logo_w = logo_h * (theme.PAGE_H_IN / theme.PAGE_W_IN) * aspect
-        ax_logo = fig.add_axes((MARGIN_X, 0.962 - logo_h / 2, logo_w, logo_h))
+        ax_logo = fig.add_axes((MARGIN_X, 0.960 - logo_h / 2, logo_w, logo_h))
         ax_logo.imshow(img, interpolation="bilinear")
         ax_logo.axis("off")
+        wordmark_x = MARGIN_X + logo_w + 0.010
+    fig.text(
+        wordmark_x,
+        0.960,
+        "Unravel",
+        fontsize=13,
+        fontweight="bold",
+        color=theme.INK,
+        va="center",
+        family=theme.display_font(),
+    )
     fig.text(
         RIGHT_X,
-        0.962,
-        f"Cross-Sectional Factor Analysis  ·  {factor.name}",
-        fontsize=8.5,
+        0.960,
+        f"Factor Analysis  ·  {factor.name}",
+        fontsize=8,
         color=theme.MUTED,
-        weight="medium",
         ha="right",
         va="center",
     )
@@ -82,11 +93,14 @@ def _draw_header(fig: plt.Figure, factor: Factor) -> None:
         )
     )
 
+    # Title block — same vertical anchor as page 1 so the two pages read as
+    # siblings, not as different documents. Shorter wordmark than page 1
+    # because the title text is longer.
     fig.text(
         MARGIN_X,
-        0.910,
+        0.908,
         "Factor Analysis",
-        fontsize=32,
+        fontsize=36,
         fontweight="bold",
         color=theme.INK,
         va="top",
@@ -94,13 +108,13 @@ def _draw_header(fig: plt.Figure, factor: Factor) -> None:
     )
     fig.text(
         MARGIN_X,
-        0.852,
+        0.855,
         textwrap.fill(
             (
-                "Diagnostics on the raw factor values, independent of portfolio "
-                "construction. The quintile and IC plots show whether the signal "
-                "cross-sectionally separates outperformers from underperformers — "
-                "and how consistently."
+                "Diagnostics on the raw factor values, independent of "
+                "portfolio construction. The quintile and IC plots show "
+                "whether the signal cross-sectionally separates outperformers "
+                "from underperformers — and how consistently."
             ),
             width=110,
         ),
@@ -114,12 +128,12 @@ def _draw_header(fig: plt.Figure, factor: Factor) -> None:
 def _draw_footer(fig: plt.Figure, factor: Factor) -> None:
     fig.add_artist(
         plt.Line2D(
-            [MARGIN_X, RIGHT_X], [0.029, 0.029], color=theme.HAIR, linewidth=0.5
+            [MARGIN_X, RIGHT_X], [0.030, 0.030], color=theme.HAIR, linewidth=0.5
         )
     )
     fig.text(
         MARGIN_X,
-        0.016,
+        0.017,
         factor.detail_url,
         fontsize=7.5,
         color=theme.SUB_INK,
@@ -128,8 +142,8 @@ def _draw_footer(fig: plt.Figure, factor: Factor) -> None:
     )
     fig.text(
         RIGHT_X,
-        0.016,
-        f"Page 2 of 2  ·  {_date.today():%b %Y}",
+        0.017,
+        f"Page 2 of 2    ·    {_date.today():%b %Y}",
         fontsize=7.5,
         color=theme.MUTED,
         ha="right",
@@ -344,8 +358,8 @@ def render_page_two(
         figure=fig,
         left=MARGIN_X,
         right=RIGHT_X,
-        top=0.78,
-        bottom=0.085,
+        top=0.76,
+        bottom=0.090,
         hspace=0.5,
         wspace=0.28,
     )
