@@ -35,10 +35,11 @@ MARGIN_X = 0.07
 RIGHT_X = 1.0 - MARGIN_X
 COL_WIDTH = RIGHT_X - MARGIN_X
 
-# Width budget for overview text columns. At 8.5pt Mona Sans, ~72ch lets
-# each line reach close to the column's right edge so the text block visually
-# aligns with the equity sparkline above it.
-OVERVIEW_COL_CH = 72
+# Width budget for overview text columns. Measured at 9pt Mona Sans: the
+# rendered width of 60 chars ≈ 3.30in, which leaves a safe margin inside the
+# 3.46in column (averaged across the whole alphabet — short lines stay well
+# within the column, long ones don't bleed into the right column).
+OVERVIEW_COL_CH = 60
 
 
 # ---------- low-level helpers -------------------------------------------------
@@ -440,12 +441,14 @@ def _draw_kpi_strip(fig: plt.Figure, stats: metrics.Stats, y: float) -> None:
             va="top",
             weight="semibold",
         )
-        # Value — left-aligned beneath, large.
+        # Value — left-aligned beneath. 18pt is the largest size at which
+        # "−37.3%" (the widest formatted value we render) fits inside a card
+        # without bleeding into the next column.
         fig.text(
             x + 0.012,
             y + card_h * 0.45,
             value,
-            fontsize=22,
+            fontsize=18,
             color=theme.INK,
             ha="left",
             va="center",
