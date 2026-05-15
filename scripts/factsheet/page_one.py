@@ -35,8 +35,10 @@ MARGIN_X = 0.07
 RIGHT_X = 1.0 - MARGIN_X
 COL_WIDTH = RIGHT_X - MARGIN_X
 
-# Width budget for overview text columns (~62 cpl per column at 8.5pt).
-OVERVIEW_COL_CH = 62
+# Width budget for overview text columns. At 8.5pt Mona Sans, ~72ch lets
+# each line reach close to the column's right edge so the text block visually
+# aligns with the equity sparkline above it.
+OVERVIEW_COL_CH = 72
 
 
 # ---------- low-level helpers -------------------------------------------------
@@ -527,7 +529,7 @@ def render_page_one(
     # heatmap is showing.
     _draw_section_eyebrow(
         fig,
-        y=0.460,
+        y=0.485,
         label="Monthly returns",
         right_label=f"{stats.start:%b %Y} \u2014 {stats.end:%b %Y}",
         sub_label=(
@@ -539,17 +541,18 @@ def render_page_one(
     render_monthly_heatmap(
         fig,
         returns,
-        rect=(MARGIN_X, 0.250, COL_WIDTH, 0.180),
+        rect=(MARGIN_X, 0.300, COL_WIDTH, 0.155),
         title="",
     )
 
-    # Risk & return strip.
+    # Risk & return strip. Pushed down enough that the section rule clears the
+    # heatmap's x-axis tick row.
     _draw_section_eyebrow(
         fig,
-        y=0.232,
+        y=0.255,
         label="Risk & return",
     )
-    _draw_kpi_strip(fig, stats, y=0.130)
+    _draw_kpi_strip(fig, stats, y=0.150)
 
     _draw_disclaimer_and_footer(fig, factor)
     return fig
