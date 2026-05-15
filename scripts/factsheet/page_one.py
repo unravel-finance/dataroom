@@ -527,18 +527,18 @@ def render_page_one(
     overview_top = 0.712 if factor.effect else 0.790
     _draw_overview(fig, factor, y_top=overview_top, y_bot=0.475)
 
-    # Performance section. The sub_label is the professional context line
-    # for the illustrative single-factor portfolio whose monthly returns the
-    # heatmap is showing.
+    # Performance section. The sub_label makes the framing of the heatmap
+    # unambiguous: this is an *example portfolio* you could construct from
+    # the raw factor, not the factor itself.
     _draw_section_eyebrow(
         fig,
         y=0.485,
         label="Monthly returns",
         right_label=f"{stats.start:%b %Y} \u2014 {stats.end:%b %Y}",
         sub_label=(
-            "Illustrative cross-sectional portfolio \u2014 long top-ranked, "
-            "short bottom-ranked across the Top "
-            f"{factor.default_universe}, rebalanced daily."
+            f"Example Top {factor.default_universe} cross-sectional portfolio "
+            "constructed from the raw factor \u2014 long the top-ranked names, "
+            "short the bottom, rebalanced daily."
         ),
     )
     render_monthly_heatmap(
