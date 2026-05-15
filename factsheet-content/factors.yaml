@@ -1,0 +1,432 @@
+# Catalog of single-factor portfolios for the Unravel sales pipeline.
+#
+# Each entry drives:
+#   - CSV exports (returns + raw factor data) under data/returns and data/factors
+#   - PDF factsheets under data/factsheets
+#
+# The portfolio_id is the unconstrained (universe 40) variant — that's the one
+# whose returns we publish. The default_universe controls which universe we use
+# when pulling tickers / raw factor data for the AlphaLens analysis.
+#
+# `effect` is a single sentence describing what edge the factor captures —
+# rendered on page 1 of the factsheet, above the long description.
+
+factors:
+  - id: altair
+    name: Altair
+    portfolio_id: altair.40
+    default_universe: "40"
+    badges: [Market-Neutral, Derivatives Metrics, Single-Factor]
+    category: Microstructure
+    short_description: >-
+      Measures short-term liquidity dynamics, slippage and market order imbalances.
+    effect: >-
+      Captures intraday liquidity dislocations: assets temporarily harder to
+      transact in tend to mean-revert as flow normalises.
+    long_description: |
+      Altair is a short-term liquidity metric that captures intraday market
+      dynamics. The data is collected in real time and aggregated from the most
+      reputable exchanges.
+
+      Altair is a high-turnover factor that benefits from smoothing to reduce
+      transaction costs.
+
+      The asset universe consists of the most liquid and actively traded assets,
+      identified on a rolling basis — various techniques are employed to keep it
+      both stable and relevant, as well as survivorship-bias free.
+
+      To balance each asset's risk contribution, positions are scaled according
+      to the inverse of their rolling volatility.
+
+      The factor is available (point-in-time) with hourly updates, 5 minutes
+      past the hour (UTC).
+
+  - id: margin_risk
+    name: Margin Risk
+    portfolio_id: margin_risk.40
+    default_universe: "40"
+    badges: [Market-Neutral, Derivatives Metrics, Single-Factor]
+    category: Derivatives Positioning
+    short_description: >-
+      Assets with higher at-risk-of-liquidation positions tend to underperform
+      less leveraged assets.
+    effect: >-
+      Crowded, highly-leveraged long positions get washed out by cascading
+      liquidations — a structural drag that the factor systematically shorts.
+    long_description: |
+      The factor capitalises on the tendency of assets with higher
+      at-risk-of-liquidation positions to underperform less leveraged assets.
+
+      Margin Risk predicts positions vulnerable to forced closure at 1%, 2%, 5%
+      and 10% deviations from the current price. Data is aggregated from the top
+      10 most reputable exchanges.
+
+      The asset universe consists of the most liquid and actively traded assets,
+      identified on a rolling basis — various techniques employed to keep it
+      both stable and relevant, as well as survivorship-bias free.
+
+      To balance each asset's risk contribution, positions are scaled according
+      to the inverse of their rolling volatility.
+
+      The factor is available (point-in-time) with hourly updates, 5 minutes
+      past the hour (UTC).
+
+  - id: retail_flow
+    name: Retail Flow
+    portfolio_id: retail_flow.40
+    default_universe: "40"
+    badges: [Market-Neutral, Derivatives Metrics / Positioning, Single-Factor]
+    category: Order Flow
+    short_description: >-
+      Quantifies retail money flow, positioning and activity, and systematically
+      takes contrarian positions.
+    effect: >-
+      Retail concentration in an asset reliably precedes overreaction and
+      herding; the factor fades the crowd.
+    long_description: |
+      The "Retail Flow" cross-sectional factor is designed to measure and
+      respond to retail investor activity.
+
+      By analysing individual executed trades sourced from exchanges, the
+      strategy identifies assets heavily influenced by retail participation. It
+      then takes systematically contrarian positions, seeking to exploit
+      predictable patterns of overreaction and herding behaviour.
+
+      Order sizes and types are utilised to differentiate between retail and
+      institutional activity. To quantify trade imbalances on the filtered
+      trades, five distinct techniques are employed, their outputs are
+      normalised and combined in an ensemble approach, without any optimisation
+      or parameter fitting.
+
+      The factor is available (point-in-time) with hourly updates, 5 minutes
+      past the hour (UTC).
+
+  - id: mean_reversion_enhanced
+    name: Enhanced Mean Reversion
+    portfolio_id: mean_reversion_enhanced.40
+    default_universe: "40"
+    badges: [Market-Neutral, Survivorship-Bias Free, Single-Factor]
+    category: Statistical
+    short_description: >-
+      Basket-based mean reversion signal diversified across time frames and
+      transformations with enhanced conditioning for robustness.
+    effect: >-
+      Captures short-horizon reversal across multiple windows, conditioned on
+      regime so the signal is muted when reversal isn't paying.
+    long_description: |
+      Enhanced Mean Reversion is a basket-based signal that combines diversified
+      mean reversion transformations across multiple time frames, with enhanced
+      conditioning to improve robustness.
+
+      The asset universe consists of the most liquid and actively traded assets,
+      identified on a rolling basis — various techniques are employed to keep it
+      both stable and relevant, as well as survivorship-bias free.
+
+      To balance each asset's risk contribution, positions are scaled according
+      to the inverse of their rolling volatility.
+
+      The factor is available (point-in-time) with hourly updates, 5 minutes
+      past the hour (UTC).
+
+  - id: instantaneous_momentum
+    name: Instantaneous Momentum
+    portfolio_id: instantaneous_momentum.40
+    default_universe: "40"
+    badges: [Market-Neutral, Survivorship-Bias Free, Single-Factor]
+    category: Momentum
+    short_description: >-
+      Proprietary measure of momentum — assets with higher instantaneous
+      momentum tend to outperform.
+    effect: >-
+      Identifies assets that are accelerating right now (not over weeks), and
+      rides the short-term continuation before it decays.
+    long_description: |
+      The factor capitalises on the tendency of assets with higher
+      instantaneous momentum to outperform assets with lower instantaneous
+      momentum.
+
+      Its universe consists of the most liquid and actively traded assets,
+      identified on a rolling basis — various techniques are employed to keep it
+      both stable and relevant, as well as survivorship-bias free.
+
+      To balance each asset's risk contribution, positions are scaled according
+      to the inverse of their rolling volatility.
+
+      The portfolio is rebalanced daily, with hourly updates provided, 5 minutes
+      past the hour (UTC).
+
+  - id: polaris
+    name: Polaris
+    portfolio_id: polaris.40
+    default_universe: "40"
+    badges: [Market-Neutral, Survivorship-Bias Free, Single-Factor]
+    category: Momentum
+    short_description: >-
+      Proprietary measure of short-term, normalised momentum effects across
+      crypto assets.
+    effect: >-
+      A volatility-normalised momentum read — identifies assets whose drift is
+      strong relative to their own noise floor.
+    long_description: |
+      Polaris is a proprietary market-neutral measure designed to identify
+      short-term, normalised momentum effects across crypto assets.
+
+      Its universe consists of the most liquid and actively traded assets,
+      identified on a rolling basis — various techniques are employed to keep it
+      both stable and relevant, as well as survivorship-bias free.
+
+      To balance each asset's risk contribution, positions are scaled according
+      to the inverse of their rolling volatility.
+
+      The portfolio is rebalanced daily, with hourly updates provided, 5 minutes
+      past the hour (UTC).
+
+  - id: relative_illiquidity
+    name: Relative Illiquidity
+    portfolio_id: relative_illiquidity.40
+    default_universe: "40"
+    badges: [Market-Neutral, Derivatives Metrics, Single-Factor]
+    category: Liquidity
+    short_description: >-
+      Captures the effect of assets with higher relative illiquidity tending to
+      outperform.
+    effect: >-
+      Harvests the illiquidity risk premium in mid/large-cap digital assets —
+      assets that are harder to transact pay you to hold them.
+    long_description: |
+      The factor is designed to capitalise on the persistent effect of assets
+      with higher relative illiquidity tending to outperform, among the
+      mid/large-cap digital assets.
+
+      Relative illiquidity is calculated by taking the arithmetic mean of half a
+      dozen relative liquidity metrics — ratios where the denominator is usually
+      market capitalisation of the asset. Among them are volume, open interest,
+      order book depth, spread, and four more. The metrics are aggregated across
+      the top 10 most reputable exchanges.
+
+      To balance each asset's risk contribution, positions are scaled according
+      to the inverse of their rolling volatility.
+
+      The factor is available (point-in-time) with hourly updates, 5 minutes
+      past the hour (UTC).
+
+  - id: supply_velocity
+    name: Supply Velocity
+    portfolio_id: supply_velocity.40
+    default_universe: "40"
+    badges: [Market-Neutral, Fundamental, Single-Factor]
+    category: Fundamental
+    short_description: >-
+      Assets with lower inflation perform better than assets with higher
+      inflation.
+    effect: >-
+      Captures the link between token supply dynamics and price: inflationary
+      tokens systematically underperform their disinflationary peers.
+    long_description: |
+      Supply Velocity measures changes in token supply dynamics. It captures
+      inflationary and deflationary pressures across crypto assets, reflecting
+      the fundamental relationship between token supply and asset performance.
+
+      It was inspired by the observation that supply inflation can lead to
+      underperformance, and that crypto is maturing into a more
+      fundamental-driven market where tokenomics increasingly matter.
+
+      The asset universe consists of the most liquid and actively traded assets,
+      identified on a rolling basis — various techniques are employed to keep it
+      both stable and relevant, as well as survivorship-bias free.
+
+      The factor is available (point-in-time) with hourly updates, 5 minutes
+      past the hour (UTC).
+
+  - id: momentum_enhanced
+    name: Enhanced Momentum
+    portfolio_id: momentum_enhanced.40
+    default_universe: "40"
+    badges: [Market-Neutral, Survivorship-Bias Free, Single-Factor]
+    category: Momentum
+    short_description: >-
+      Captures short-term momentum effects, measured by a wide range of
+      proprietary methods.
+    effect: >-
+      Blends three orthogonal short-term momentum reads (Instantaneous Momentum,
+      Polaris, Momentum) — diversified momentum exposure with lower
+      idiosyncratic noise.
+    long_description: |
+      Enhanced Momentum is designed to exploit cross-sectional price
+      inefficiencies in the crypto market, measured by a collection of
+      proprietary methods, capturing short-term momentum-related effects.
+
+      It is a blend of:
+        - Instantaneous Momentum
+        - Polaris
+        - Momentum
+
+      Where possible, it is recommended to use the individual components — they
+      give more control over the exposure.
+
+      The asset universe consists of the most liquid and actively traded assets,
+      identified on a rolling basis — various techniques are employed to keep it
+      both stable and relevant, as well as survivorship-bias free.
+
+      The factor is available (point-in-time) with hourly updates, 5 minutes
+      past the hour (UTC).
+
+  - id: mean_reversion
+    name: Mean Reversion
+    portfolio_id: mean_reversion.40
+    default_universe: "40"
+    badges: [Market-Neutral, Survivorship-Bias Free, Single-Factor]
+    category: Statistical
+    short_description: >-
+      Basket-based mean reversion signal diversified across different windows to
+      capture broad reversal dynamics.
+    effect: >-
+      Systematically buys recent underperformers and sells outperformers across
+      a diversified set of look-back windows.
+    long_description: |
+      Mean Reversion is a basket-based signal diversified across different
+      windows to capture reversal dynamics and statistical arbitrage
+      opportunities in crypto assets.
+
+      The asset universe consists of the most liquid and actively traded assets,
+      identified on a rolling basis — various techniques are employed to keep it
+      both stable and relevant, as well as survivorship-bias free.
+
+      To balance each asset's risk contribution, positions are scaled according
+      to the inverse of their rolling volatility.
+
+      The factor is available (point-in-time) with hourly updates, 5 minutes
+      past the hour (UTC).
+
+  - id: trend_longonly_adaptive
+    name: Trend Consensus Adaptive (Long-Only)
+    portfolio_id: trend_longonly_adaptive.40
+    default_universe: "40"
+    badges: [Long-Only, Survivorship-Bias Free, Single-Factor]
+    category: Trend / Long-Only
+    short_description: >-
+      Exploits the tendency of assets with positive trend consensus, when the
+      overall market trend is positive.
+    effect: >-
+      Long-only exposure to the strongest-trending assets, gated by a
+      market-wide regime filter — gross exposure goes to zero in adverse
+      markets.
+    long_description: |
+      Trend Consensus Adaptive is designed to exploit the asymmetric positive
+      expected returns of assets with positive trend consensus. It longs the top
+      sextile (top 20%) of assets with the highest Trend Consensus, when the
+      overall market trend is positive. It does not have any short exposure.
+
+      Unlike other portfolios, Trend Consensus Adaptive is long-only and is
+      displayed here with 100% target gross exposure.
+
+      The asset universe consists of the most liquid and actively traded assets,
+      identified on a rolling basis — various techniques are employed to keep it
+      both stable and relevant, as well as survivorship-bias free.
+
+      The factor is available (point-in-time) with hourly updates, 5 minutes
+      past the hour (UTC).
+
+  - id: carry_enhanced
+    name: Enhanced Carry
+    portfolio_id: carry_enhanced.40
+    default_universe: "40"
+    badges: [Market-Neutral, Survivorship-Bias Free, Single-Factor]
+    category: Carry
+    short_description: >-
+      Captures cross-sectional funding premium across a wide range of exchanges,
+      exploiting funding imbalances.
+    effect: >-
+      Earns the funding-rate premium plus the statistical inefficiency that
+      surrounds it, aggregated across 10 venues rather than a single exchange.
+    long_description: |
+      The market-neutral carry portfolio is designed to exploit funding
+      premiums, in large part capturing the associated statistical
+      inefficiencies — in addition to the funding payments themselves. The
+      factor is calculated by ingesting funding rates from the top 10 most
+      reputable exchanges, avoiding reliance on any specific venue alone.
+
+      The asset universe consists of the most liquid and actively traded assets,
+      identified on a rolling basis — various techniques are employed to keep it
+      both stable and relevant, as well as survivorship-bias free.
+
+      The factor is available (point-in-time) with hourly updates, 5 minutes
+      past the hour (UTC).
+
+  - id: instantaneous_volatility
+    name: Instantaneous Volatility
+    portfolio_id: instantaneous_volatility.40
+    default_universe: "40"
+    badges: [Market-Neutral, Single-Factor]
+    category: Volatility
+    short_description: >-
+      Proprietary measure of volatility — assets with higher instantaneous
+      volatility tend to outperform in certain market conditions.
+    effect: >-
+      Identifies regimes where high-volatility names lead the tape and tilts
+      cross-sectionally accordingly.
+    long_description: |
+      The factor capitalises on the tendency of assets with higher instantaneous
+      volatility to outperform less volatile assets in certain market
+      conditions.
+
+      The asset universe consists of the most liquid and actively traded assets,
+      identified on a rolling basis — various techniques are employed to keep it
+      both stable and relevant, as well as survivorship-bias free.
+
+      To balance each asset's risk contribution, positions are scaled according
+      to the inverse of their rolling volatility.
+
+      The factor is available (point-in-time) with hourly updates, 5 minutes
+      past the hour (UTC).
+
+  - id: open_interest_divergence
+    name: Open Interest Divergence
+    portfolio_id: open_interest_divergence.40
+    default_universe: "40"
+    badges: [Market-Neutral, Survivorship-Bias Free, Single-Factor]
+    category: Derivatives Positioning
+    short_description: >-
+      Quantifies open interest divergence and systematically takes positions,
+      aiming to capitalise on behavioural inefficiencies.
+    effect: >-
+      Reads the divergence between price action and open-interest dynamics to
+      isolate positioning-driven moves that tend to revert.
+    long_description: |
+      The portfolio is designed to capitalise on the persistent relationship
+      between open interest dynamics and future asset performance. It
+      systematically identifies and exploits divergence in open interest
+      patterns across assets.
+
+      The asset universe consists of the most liquid and actively traded assets,
+      identified on a rolling basis — various techniques are employed to keep it
+      both stable and relevant, as well as survivorship-bias free.
+
+      The factor is available (point-in-time) with hourly updates, 5 minutes
+      past the hour (UTC).
+
+  - id: momentum
+    name: Momentum
+    portfolio_id: momentum.40
+    default_universe: "40"
+    badges: [Market-Neutral, Survivorship-Bias Free, Single-Factor]
+    category: Momentum
+    short_description: >-
+      Captures short-term momentum opportunities, aiming for uncorrelated
+      returns while minimising directional exposure.
+    effect: >-
+      Classic cross-sectional momentum tailored to crypto's short half-life:
+      longs the leaders, shorts the laggards, market-neutral.
+    long_description: |
+      The market-neutral momentum portfolio is designed to exploit
+      cross-sectional price inefficiencies in the crypto market, capturing
+      short-term, asset-specific momentum signals. By maintaining balanced long
+      and short exposures, it aims to deliver alpha while minimising sensitivity
+      to broader market movements.
+
+      Its universe consists of the most liquid and actively traded assets,
+      identified on a rolling basis — various techniques are employed to keep it
+      both stable and relevant, as well as survivorship-bias free.
+
+      The factor is available (point-in-time) with hourly updates, 5 minutes
+      past the hour (UTC).
