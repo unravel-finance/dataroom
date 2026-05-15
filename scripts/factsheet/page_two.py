@@ -171,51 +171,107 @@ def _strip_top_right(ax: plt.Axes) -> None:
     ax.spines["bottom"].set_color(theme.HAIR)
 
 
+# ---- AlphaLens helpers ------------------------------------------------------
+
+# We always pin the analysis to the 1-day forward return — that's the
+# non-overlapping series, the one AlphaLens' default cumulative_returns()
+# treats as `cumprod` without smoothing, and the one our daily-rebalanced
+# illustrative portfolio uses on page 1.
+PERIOD = "1D"
+
+
+def _forward_return_period(clean: pd.DataFrame) -> str:
+    """Return the column name to use as the forward-return — '1D' if AlphaLens
+    produced it, otherwise the shortest forward-return column available."""
+    fwd_cols = list(alphalens.utils.get_forward_returns_columns(clean.columns))
+    if PERIOD in fwd_cols:
+        return PERIOD
+    # Sort by the numeric prefix so we get the shortest period.
+    def _days(col: str) -> int:
+        try:
+            return int(str(col).rstrip("D"))
+        except ValueError:
+            return 10**9
+
+    return sorted(fwd_cols, key=_days)[0]
+
+
+def _mean_ic(clean: pd.DataFrame, period: str) -> float:
+    ic = alphalens.performance.factor_information_coefficient(clean)
+    return float(ic[period].mean())
+
+
+# ---- Charts -----------------------------------------------------------------
+
+
 def _plot_mean_return_by_quantile(ax: plt.Axes, clean: pd.DataFrame) -> None:
-    mean_q, _ = alphalens.performance.mean_return_by_quantile(clean, by_date=False)
-    period_col = mean_q.columns[0]
-    values = mean_q[period_col]
+    """Overall mean forward return by quantile — demeaned (alpha contribution).
+
+    `demeaned=True` is AlphaLens' default and what readers expect from a
+    cross-sectional factor chart: each asset's forward return has the
+    universe-wide mean subtracted, so the bars show the factor's alpha, not
+    the underlying market drift.
+    """
+    period = _forward_return_period(clean)
+    mean_q, _ = alphalens.performance.mean_return_by_quantile(
+        clean, by_date=False, demeaned=True
+    )
+    values = mean_q[period]
     quantiles = values.index.tolist()
     colors = _quantile_palette(len(quantiles))
     ax.bar(
         [str(q) for q in quantiles],
-        values.values * 1e4,
+        values.values * 1e4,  # daily returns → bps
         color=colors,
         edgecolor="none",
     )
     ax.axhline(0, color=theme.HAIR, linewidth=0.6)
-    ax.set_title("Mean Forward Return by Quantile", loc="left", color=theme.INK)
-    ax.set_xlabel("Quantile  (1 = lowest, 5 = highest)")
-    ax.set_ylabel("Mean Return (bps)")
+    ax.set_title(
+        f"Mean Forward Return by Quantile  ·  demeaned, {period}",
+        loc="left",
+        color=theme.INK,
+    )
+    ax.set_xlabel("Quantile  (1 = lowest factor value, 5 = highest)")
+    ax.set_ylabel("Alpha (bps / day)")
     ax.grid(axis="y", linewidth=0.4, alpha=0.6)
     _strip_top_right(ax)
 
 
 def _plot_ic_with_stats(ax: plt.Axes, clean: pd.DataFrame) -> None:
-    ic = alphalens.performance.factor_information_coefficient(clean)
-    period_col = ic.columns[0]
-    series = ic[period_col]
-    series_rolling = series.rolling(21, min_periods=5).mean()
-    mean_ic = float(series.mean())
-    std_ic = float(series.std())
+    """Daily IC time-series with 21-day MA and the long-run mean as a baseline."""
+    period = _forward_return_period(clean)
+    ic = alphalens.performance.factor_information_coefficient(clean)[period]
+    rolling = ic.rolling(21, min_periods=5).mean()
+    mean_ic = float(ic.mean())
+    std_ic = float(ic.std())
     ir = mean_ic / std_ic if std_ic > 0 else float("nan")
-    hit_rate = float((series.dropna() > 0).mean())
+    hit_rate = float((ic.dropna() > 0).mean())
 
     ax.bar(
-        series.index,
-        series.values,
+        ic.index,
+        ic.values,
         color=theme.HAIR,
         edgecolor="none",
         width=2.0,
         zorder=1,
     )
+    # 21-day moving average — visual stability cue.
     ax.plot(
-        series_rolling.index,
-        series_rolling.values,
+        rolling.index,
+        rolling.values,
         color=theme.ACCENT,
         linewidth=1.4,
         zorder=2,
         label="21-day MA",
+    )
+    # Mean IC as a horizontal reference — standard AlphaLens IC plot.
+    ax.axhline(
+        mean_ic,
+        color=theme.INK,
+        linewidth=0.9,
+        linestyle=(0, (3, 2)),
+        zorder=3,
+        label=f"Mean  {metrics.fmt_ratio(mean_ic, 4)}",
     )
     ax.axhline(0, color=theme.HAIR, linewidth=0.6)
     ax.set_ylabel("IC")
@@ -224,17 +280,17 @@ def _plot_ic_with_stats(ax: plt.Axes, clean: pd.DataFrame) -> None:
     _strip_top_right(ax)
     _set_year_ticks(ax)
 
-    # Stats live as a subtitle directly under the panel title — same panel,
-    # no overlay collisions, clear visual association with the chart they
-    # summarise.
     stats_line = (
         f"Mean {metrics.fmt_ratio(mean_ic, 4)}  ·  "
         f"Std {metrics.fmt_ratio(std_ic, 4)}  ·  "
         f"IR {metrics.fmt_ratio(ir, 2)}  ·  "
-        f"{metrics.fmt_pct(hit_rate)} positive"
+        f"{metrics.fmt_pct(hit_rate)} positive  ·  {period}"
     )
     ax.set_title(
-        "Information Coefficient", loc="left", color=theme.INK, pad=18
+        "Information Coefficient (Spearman)",
+        loc="left",
+        color=theme.INK,
+        pad=18,
     )
     ax.text(
         0.0,
@@ -260,15 +316,24 @@ def _plot_ic_with_stats(ax: plt.Axes, clean: pd.DataFrame) -> None:
         )
 
 
-def _plot_cumulative_quantile_returns(ax: plt.Axes, clean: pd.DataFrame) -> None:
-    period_col = [c for c in clean.columns if isinstance(c, str) and c.endswith("D")]
-    period = period_col[0] if period_col else clean.columns[0]
-    by_q = (
-        clean.groupby(["date", "factor_quantile"], observed=True)[period]
-        .mean()
-        .unstack(level=1)
+def _quantile_daily_returns(clean: pd.DataFrame) -> tuple[pd.DataFrame, str]:
+    """AlphaLens' canonical per-date / per-quantile mean (demeaned) forward
+    returns. Returns a wide DataFrame indexed by date, columns are quantiles,
+    plus the period name we used."""
+    period = _forward_return_period(clean)
+    mean_quant_daily, _ = alphalens.performance.mean_return_by_quantile(
+        clean, by_date=True, demeaned=True
     )
-    cum = (1.0 + by_q).cumprod()
+    by_q = mean_quant_daily[period].unstack(level="factor_quantile")
+    return by_q, period
+
+
+def _plot_cumulative_quantile_returns(ax: plt.Axes, clean: pd.DataFrame) -> None:
+    """Cumulative-return path per quantile, using AlphaLens' cumulative_returns
+    helper so the math is identical to AlphaLens' plot_cumulative_returns_by_quantile.
+    """
+    by_q, period = _quantile_daily_returns(clean)
+    cum = by_q.apply(alphalens.performance.cumulative_returns)
     colors = _quantile_palette(cum.shape[1])
     for i, q in enumerate(cum.columns):
         ax.plot(
@@ -278,7 +343,12 @@ def _plot_cumulative_quantile_returns(ax: plt.Axes, clean: pd.DataFrame) -> None
             linewidth=1.2,
             color=colors[i],
         )
-    ax.set_title("Cumulative Return by Quantile", loc="left", color=theme.INK)
+    ax.axhline(1.0, color=theme.HAIR, linewidth=0.5)
+    ax.set_title(
+        f"Cumulative Alpha by Quantile  ·  demeaned, {period}",
+        loc="left",
+        color=theme.INK,
+    )
     ax.set_ylabel("Growth of 1.00")
     ax.grid(axis="y", linewidth=0.4, alpha=0.6)
     ax.legend(loc="upper left", ncol=len(cum.columns), fontsize=7, columnspacing=1.2)
@@ -287,22 +357,26 @@ def _plot_cumulative_quantile_returns(ax: plt.Axes, clean: pd.DataFrame) -> None
 
 
 def _plot_top_minus_bottom(ax: plt.Axes, clean: pd.DataFrame) -> None:
-    period_col = [c for c in clean.columns if isinstance(c, str) and c.endswith("D")]
-    period = period_col[0] if period_col else clean.columns[0]
-    by_q = (
-        clean.groupby(["date", "factor_quantile"], observed=True)[period]
-        .mean()
-        .unstack(level=1)
-    )
+    """Long–short spread.
+
+    For factors with positive mean IC we show Q_top − Q_bot (factor's natural
+    direction). For contrarian factors (mean IC < 0) we flip to Q_bot − Q_top
+    so the chart reads in the direction the tradable portfolio on page 1
+    actually trades; the title makes the flip explicit.
+    """
+    by_q, period = _quantile_daily_returns(clean)
     if by_q.shape[1] < 2:
         ax.axis("off")
         return
     top_q = by_q.columns.max()
     bot_q = by_q.columns.min()
-    spread = by_q[top_q] - by_q[bot_q]
-    eq = (1.0 + spread).cumprod()
-    # Brand teal — this is the headline "long–short equity curve" — the thing
-    # we're effectively selling.
+    mean_ic = _mean_ic(clean, period)
+    contrarian = mean_ic < 0
+    long_q, short_q = (bot_q, top_q) if contrarian else (top_q, bot_q)
+
+    spread = by_q[long_q] - by_q[short_q]
+    eq = alphalens.performance.cumulative_returns(spread)
+
     ax.plot(eq.index, eq.values, color=theme.ACCENT, linewidth=1.6)
     ax.fill_between(
         eq.index,
@@ -314,8 +388,9 @@ def _plot_top_minus_bottom(ax: plt.Axes, clean: pd.DataFrame) -> None:
         linewidth=0,
     )
     ax.axhline(1.0, color=theme.HAIR, linewidth=0.5)
+    direction_note = "  ·  contrarian" if contrarian else ""
     ax.set_title(
-        f"Long–Short Spread  (Q{top_q} {theme.MINUS} Q{bot_q})",
+        f"Long–Short Spread  (long Q{long_q}, short Q{short_q}){direction_note}",
         loc="left",
         color=theme.INK,
     )
