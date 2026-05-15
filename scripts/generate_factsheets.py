@@ -34,6 +34,7 @@ from unravel_client import (
 
 from scripts.factors_catalog import Factor, load_factors
 from scripts.factsheet import metrics
+from scripts.factsheet.al_utils import clean_factor_data
 from scripts.factsheet.page_one import render_page_one
 from scripts.factsheet.page_two import render_page_two
 
@@ -77,12 +78,21 @@ def render_factsheet(factor: Factor, api_key: str) -> Path:
     print(f"[{factor.id}] {factor.name}")
     returns, factor_data, prices = _fetch_factor_inputs(factor, api_key)
     stats = metrics.compute_stats(returns)
+    # Clean once, share with both pages — page 1 uses it for the top-right
+    # signal-quality bar chart, page 2 uses it for the full AlphaLens panel
+    # grid. Best-effort: if AlphaLens preparation fails the top-right bars
+    # are skipped silently and page 2 falls back to its own error path.
+    try:
+        clean = clean_factor_data(factor_data, prices)
+    except Exception as exc:  # noqa: BLE001
+        print(f"  ! clean_factor_data failed: {exc}")
+        clean = None
 
     FACTSHEETS_DIR.mkdir(parents=True, exist_ok=True)
     out = FACTSHEETS_DIR / f"{factor.id}.pdf"
 
     with PdfPages(out) as pdf:
-        page1 = render_page_one(factor, returns, stats)
+        page1 = render_page_one(factor, returns, stats, clean)
         pdf.savefig(page1)
         plt.close(page1)
 

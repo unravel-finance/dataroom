@@ -10,7 +10,6 @@ Reading order (per the Claude Design critique):
 from __future__ import annotations
 
 import textwrap
-import warnings
 from datetime import date as _date
 from pathlib import Path
 
@@ -21,11 +20,11 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import numpy as np
 import pandas as pd
-import seaborn as sns
 from matplotlib.gridspec import GridSpec
 
 from scripts.factors_catalog import Factor
 from scripts.factsheet import metrics, theme
+from scripts.factsheet.al_utils import clean_factor_data, quantile_palette
 
 MARGIN_X = 0.07
 RIGHT_X = 1.0 - MARGIN_X
@@ -36,25 +35,6 @@ LOGO_PNG = REPO_ROOT / "branding" / "unravel-logo.png"
 def _set_year_ticks(ax: plt.Axes) -> None:
     ax.xaxis.set_major_locator(mdates.YearLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
-
-
-def _clean_factor_data(
-    factor_data: pd.DataFrame, prices: pd.DataFrame, quantiles: int = 5
-) -> pd.DataFrame:
-    cols = factor_data.columns.intersection(prices.columns)
-    if cols.empty:
-        raise ValueError("No overlapping tickers between factor data and prices")
-    signal = factor_data[cols].stack()
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        clean = alphalens.utils.get_clean_factor_and_forward_returns(
-            signal,
-            prices[cols],
-            quantiles=quantiles,
-            periods=(1, 5, 10),
-            max_loss=0.5,
-        )
-    return clean
 
 
 def _draw_header(fig: plt.Figure, factor: Factor) -> None:
@@ -150,13 +130,6 @@ def _draw_footer(fig: plt.Figure, factor: Factor) -> None:
         ha="right",
         va="center",
     )
-
-
-def _quantile_palette(n: int) -> list[str]:
-    cmap = sns.color_palette("RdYlGn", n).as_hex()
-    cmap[-1] = theme.ACCENT
-    cmap[0] = theme.NEG
-    return cmap
 
 
 def _percent_formatter(ax: plt.Axes, axis: str = "y") -> None:
@@ -341,7 +314,7 @@ def _plot_cumulative_quantile_returns(ax: plt.Axes, clean: pd.DataFrame) -> None
     """
     by_q, period = _quantile_daily_returns(clean)
     cum = by_q.apply(alphalens.performance.cumulative_returns)
-    colors = _quantile_palette(cum.shape[1])
+    colors = quantile_palette(cum.shape[1])
     for i, q in enumerate(cum.columns):
         ax.plot(
             cum.index,
@@ -449,7 +422,7 @@ def render_page_two(
     factor: Factor, factor_data: pd.DataFrame, prices: pd.DataFrame
 ) -> plt.Figure:
     try:
-        clean = _clean_factor_data(factor_data, prices)
+        clean = clean_factor_data(factor_data, prices)
     except Exception as exc:  # noqa: BLE001
         return _empty_quant_page(factor, f"AlphaLens preparation failed: {exc}")
 

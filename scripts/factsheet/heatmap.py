@@ -184,10 +184,10 @@ def render_monthly_heatmap(
     for spine in ax_grid.spines.values():
         spine.set_visible(False)
 
-    for x in range(cols + 1):
-        ax_grid.axvline(x - 0.5, color="white", linewidth=1.2)
-    for y in range(rows + 1):
-        ax_grid.axhline(y - 0.5, color="white", linewidth=1.2)
+    # No explicit cell separators — imshow with interpolation="nearest"
+    # already produces clean cell edges, and the previous 1.2pt white
+    # axhlines/axvlines antialiased into visible grey hairlines that
+    # appeared to cut across coloured cells.
 
     # ---- YTD column ----
     ytd_aligned = pd.Series([ytd.get(y, np.nan) for y in years], index=years).values
