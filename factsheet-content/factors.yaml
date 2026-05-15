@@ -4,12 +4,19 @@
 #   - CSV exports (returns + raw factor data) under data/returns and data/factors
 #   - PDF factsheets under data/factsheets
 #
-# The portfolio_id is the unconstrained (universe 40) variant — that's the one
-# whose returns we publish. The default_universe controls which universe we use
-# when pulling tickers / raw factor data for the AlphaLens analysis.
+# The portfolio_id is the unconstrained (universe 40) variant — that's the
+# illustrative portfolio whose returns we publish in the factsheet. The
+# default_universe controls which universe we use when pulling tickers / raw
+# factor data for the AlphaLens analysis on page 2.
 #
-# `effect` is a single sentence describing what edge the factor captures —
-# rendered on page 1 of the factsheet, above the long description.
+# Authoring guidance:
+#   - `tagline`: one-line subtitle for the page 1 hero. Reads as marketing.
+#   - `effect`:  one or two sentences describing the edge — the "why" of the
+#                factor. Rendered as the page 1 pull quote.
+#   - `long_description`: the body. Plain paragraphs, no bullet points; should
+#                start with a definition then unpack the mechanic. Do not talk
+#                about microstructure / order-flow products — that's Aperiodic.
+#                Keep this on Unravel: cross-sectional factors and portfolios.
 
 factors:
   - id: altair
@@ -75,31 +82,29 @@ factors:
     name: Retail Flow
     portfolio_id: retail_flow.40
     default_universe: "40"
-    badges: [Market-Neutral, Derivatives Metrics / Positioning, Single-Factor]
-    category: Order Flow
-    short_description: >-
-      Quantifies retail money flow, positioning and activity, and systematically
-      takes contrarian positions.
+    tagline: >-
+      A cross-sectional factor that measures retail participation in each
+      asset and systematically fades the crowd.
     effect: >-
-      Retail concentration in an asset reliably precedes overreaction and
-      herding; the factor fades the crowd.
+      Retail concentration is one of the most reliable contrarian signals in
+      crypto. Assets whose order books are dominated by small, undirected
+      retail flow consistently overreact — and tend to give back those moves
+      over the following days. Retail Flow ranks the universe by that
+      concentration and shorts the heaviest, longs the lightest.
     long_description: |
-      The "Retail Flow" cross-sectional factor is designed to measure and
-      respond to retail investor activity.
+      Retail Flow identifies the slice of trading activity that comes from
+      retail participants and uses it as a cross-sectional ranking signal.
+      Individual executed trades are sourced from the major exchanges and
+      classified by order size, type and counterparty profile, separating the
+      retail flow from institutional flow.
 
-      By analysing individual executed trades sourced from exchanges, the
-      strategy identifies assets heavily influenced by retail participation. It
-      then takes systematically contrarian positions, seeking to exploit
-      predictable patterns of overreaction and herding behaviour.
+      Trade imbalances on the retail-only stream are quantified through five
+      independent techniques. Their outputs are normalised and combined as a
+      simple unweighted ensemble — no optimisation, no parameter fitting — so
+      the signal is robust out of sample.
 
-      Order sizes and types are utilised to differentiate between retail and
-      institutional activity. To quantify trade imbalances on the filtered
-      trades, five distinct techniques are employed, their outputs are
-      normalised and combined in an ensemble approach, without any optimisation
-      or parameter fitting.
-
-      The factor is available (point-in-time) with hourly updates, 5 minutes
-      past the hour (UTC).
+      Live updates are published point-in-time, hourly, five minutes past the
+      hour (UTC).
 
   - id: mean_reversion_enhanced
     name: Enhanced Mean Reversion

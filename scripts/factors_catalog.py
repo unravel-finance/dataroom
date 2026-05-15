@@ -9,6 +9,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FACTORS_YAML = REPO_ROOT / "factsheet-content" / "factors.yaml"
+SITE_BASE_URL = "https://unravel.finance"
 
 
 @dataclass(frozen=True)
@@ -17,11 +18,20 @@ class Factor:
     name: str
     portfolio_id: str
     default_universe: str
-    badges: tuple[str, ...]
-    category: str
-    short_description: str
+    tagline: str
     effect: str
     long_description: str
+
+    @property
+    def detail_url(self) -> str:
+        """Public detail page on unravel.finance for this portfolio variant."""
+        return f"{SITE_BASE_URL}/portfolio/{self.portfolio_id}"
+
+
+def _tagline_for(entry: dict) -> str:
+    """Tagline is the new field — fall back to legacy short_description."""
+    text = entry.get("tagline") or entry.get("short_description") or ""
+    return text.strip()
 
 
 def load_factors() -> list[Factor]:
@@ -32,9 +42,7 @@ def load_factors() -> list[Factor]:
             name=entry["name"],
             portfolio_id=entry["portfolio_id"],
             default_universe=str(entry["default_universe"]),
-            badges=tuple(entry.get("badges", [])),
-            category=entry.get("category", ""),
-            short_description=entry["short_description"].strip(),
+            tagline=_tagline_for(entry),
             effect=entry["effect"].strip(),
             long_description=entry["long_description"].strip(),
         )

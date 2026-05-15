@@ -44,67 +44,81 @@ def _clean_factor_data(
     return clean
 
 
+MARGIN_X = 0.07
+RIGHT_X = 1.0 - MARGIN_X
+
+
 def _draw_header(fig: plt.Figure, factor: Factor) -> None:
     fig.text(
-        0.06,
-        0.965,
-        "FACTOR ANALYSIS",
-        fontsize=8,
-        color=theme.MUTED,
-        weight="semibold",
+        MARGIN_X,
+        0.963,
+        f"Unravel  ·  {factor.name}",
+        fontsize=8.5,
+        color=theme.INK,
+        weight="medium",
         va="center",
     )
     fig.text(
-        0.94,
-        0.965,
-        factor.name.upper(),
-        fontsize=8,
+        RIGHT_X,
+        0.963,
+        "Factor Factsheet",
+        fontsize=8.5,
         color=theme.MUTED,
-        weight="semibold",
+        weight="medium",
         ha="right",
         va="center",
     )
     fig.add_artist(
-        plt.Line2D([0.06, 0.94], [0.95, 0.95], color=theme.HAIR, linewidth=0.6)
+        plt.Line2D(
+            [MARGIN_X, RIGHT_X], [0.935, 0.935], color=theme.HAIR, linewidth=0.6
+        )
     )
 
     fig.text(
-        0.06,
-        0.92,
-        "Quantitative deep-dive",
-        fontsize=20,
+        MARGIN_X,
+        0.895,
+        "Cross-Sectional Factor Analysis",
+        fontsize=22,
         fontweight="bold",
         color=theme.INK,
         va="top",
     )
     fig.text(
-        0.06,
-        0.89,
-        "Cross-sectional factor analysis on the raw factor data and forward returns.",
-        fontsize=10,
+        MARGIN_X,
+        0.860,
+        (
+            "Diagnostics on the raw factor values, independent of any "
+            "portfolio construction. The quintile and IC plots show whether "
+            "the signal cross-sectionally separates outperformers from "
+            "underperformers — and how consistently."
+        ),
+        fontsize=9.5,
         color=theme.SUB_INK,
         va="top",
+        linespacing=1.5,
+        wrap=True,
     )
 
 
 def _draw_footer(fig: plt.Figure, factor: Factor) -> None:
     fig.add_artist(
         plt.Line2D(
-            [0.06, 0.94], [0.055, 0.055], color=theme.HAIR, linewidth=0.5
+            [MARGIN_X, RIGHT_X], [0.052, 0.052], color=theme.HAIR, linewidth=0.5
         )
     )
     fig.text(
-        0.06,
-        0.035,
-        f"unravel.finance  •  factor: {factor.portfolio_id}",
-        fontsize=7,
-        color=theme.MUTED,
+        MARGIN_X,
+        0.032,
+        factor.detail_url,
+        fontsize=7.5,
+        color=theme.SUB_INK,
+        weight="medium",
         va="center",
     )
     fig.text(
-        0.94,
-        0.035,
-        "Page 2 of 2  •  AlphaLens Factor Analysis",
+        RIGHT_X,
+        0.032,
+        "Page 2 of 2  ·  AlphaLens factor analysis",
         fontsize=7,
         color=theme.MUTED,
         ha="right",
@@ -237,46 +251,46 @@ def _draw_ic_panel(fig: plt.Figure, clean: pd.DataFrame) -> None:
     if not summary:
         return
     cards = [
-        ("MEAN IC", f"{summary['mean_ic']:.4f}"),
-        ("IC STD", f"{summary['std_ic']:.4f}"),
-        ("IR (MEAN/STD)", f"{summary['ir']:.2f}"),
-        ("IC HIT-RATE", metrics.fmt_pct(summary["hit_rate"])),
+        ("Mean IC", f"{summary['mean_ic']:.4f}"),
+        ("IC Std", f"{summary['std_ic']:.4f}"),
+        ("IR (Mean / Std)", f"{summary['ir']:.2f}"),
+        ("IC Hit-Rate", metrics.fmt_pct(summary["hit_rate"])),
     ]
     n = len(cards)
-    left = 0.06
-    right = 0.94
-    gap = 0.01
-    w = (right - left - gap * (n - 1)) / n
-    h = 0.045
-    y = 0.825
+    width = RIGHT_X - MARGIN_X
+    card_w = width / n
+    h = 0.05
+    y = 0.78
+    # Top + bottom rules — column-separator style, no card chrome.
+    fig.add_artist(
+        plt.Line2D([MARGIN_X, RIGHT_X], [y + h, y + h], color=theme.HAIR, linewidth=0.5)
+    )
+    fig.add_artist(
+        plt.Line2D([MARGIN_X, RIGHT_X], [y, y], color=theme.HAIR, linewidth=0.5)
+    )
     for i, (label, value) in enumerate(cards):
-        x = left + i * (w + gap)
-        fig.patches.append(
-            Rectangle(
-                (x, y),
-                w,
-                h,
-                transform=fig.transFigure,
-                facecolor=theme.PANEL,
-                edgecolor=theme.HAIR,
-                linewidth=0.6,
+        x = MARGIN_X + i * card_w
+        if i > 0:
+            fig.add_artist(
+                plt.Line2D(
+                    [x, x], [y, y + h], color=theme.HAIR, linewidth=0.5
+                )
             )
-        )
         fig.text(
-            x + w / 2,
+            x + card_w / 2,
             y + h * 0.72,
             label,
-            fontsize=7,
+            fontsize=7.5,
             color=theme.MUTED,
             ha="center",
             va="center",
-            weight="semibold",
+            weight="medium",
         )
         fig.text(
-            x + w / 2,
-            y + h * 0.35,
+            x + card_w / 2,
+            y + h * 0.32,
             value,
-            fontsize=13,
+            fontsize=15,
             color=theme.INK,
             ha="center",
             va="center",
@@ -318,10 +332,10 @@ def render_page_two(
         nrows=2,
         ncols=2,
         figure=fig,
-        left=0.07,
-        right=0.95,
-        top=0.78,
-        bottom=0.08,
+        left=MARGIN_X,
+        right=RIGHT_X,
+        top=0.73,
+        bottom=0.085,
         hspace=0.45,
         wspace=0.28,
     )

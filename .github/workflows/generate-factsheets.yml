@@ -60,11 +60,23 @@ jobs:
             exit 1
           fi
 
+      # While iterating on the design we only build one factor (retail_flow).
+      # On manual dispatch the operator can override via the `factors` input,
+      # including passing the empty string to mean "all".
+      - name: Determine factors to build
+        id: scope
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "factors=${{ github.event.inputs.factors }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "factors=retail_flow" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Export CSVs (returns + factor data)
-        run: python -m scripts.export_data ${{ github.event.inputs.factors }}
+        run: python -m scripts.export_data ${{ steps.scope.outputs.factors }}
 
       - name: Generate PDF factsheets
-        run: python -m scripts.generate_factsheets ${{ github.event.inputs.factors }}
+        run: python -m scripts.generate_factsheets ${{ steps.scope.outputs.factors }}
 
       - name: Show generated artefacts
         run: |

@@ -1,66 +1,62 @@
-"""Page 1 of the factsheet: header, narrative, key stats and equity curve."""
+"""Page 1 of the factsheet — narrative + monthly-returns performance grid.
+
+Layout (top-down):
+    1. Header band: logo on the left, "Factor Factsheet" eyebrow on the right.
+    2. Title block: factor name, single-line tagline, illustrative-portfolio
+       disclaimer.
+    3. The Edge: a pull-quote describing what the factor captures.
+    4. Overview: the long-form description.
+    5. Monthly Returns heatmap.
+    6. KPI strip (CAGR / Vol / Sharpe / Max DD / Sortino / Calmar).
+    7. Footer with site URL.
+"""
 
 from __future__ import annotations
 
 import textwrap
+from datetime import date as _date
 from pathlib import Path
 
-import matplotlib.dates as mdates
+import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import pandas as pd
-from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Rectangle
 
 from scripts.factors_catalog import Factor
 from scripts.factsheet import metrics, theme
+from scripts.factsheet.heatmap import render_monthly_heatmap
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-LOGO_SVG = REPO_ROOT / "branding" / "unravel-logo.svg"
+LOGO_PNG = REPO_ROOT / "branding" / "unravel-logo.png"
+
+# ---- Layout grid (figure-fraction coordinates) ----
+MARGIN_X = 0.07
+RIGHT_X = 1.0 - MARGIN_X
 
 
-def _draw_logo(fig: plt.Figure, x: float, y: float, height: float) -> None:
-    """Draw the Unravel wordmark + ticker bars using vector primitives.
+def _draw_logo(fig: plt.Figure) -> None:
+    """Place the Unravel brand mark + wordmark in the top-left of the page."""
+    wordmark_x = MARGIN_X
 
-    The brand mark is the row of vertical bars (see logo-svg.tsx in
-    apps/alpha) — we re-render it geometrically here so the PDF stays self-
-    contained without an SVG dependency at runtime.
-    """
-    ax = fig.add_axes((x, y, height * 6.5, height), zorder=10)
-    ax.set_xlim(0, 100)
-    ax.set_ylim(0, 12)
-    ax.axis("off")
-
-    bars = [
-        # (x_center, top_height) — eyeballed from logo-svg.tsx
-        (0.5, 10.0),
-        (3.0, 10.0),
-        (5.5, 10.0),
-        (8.0, 10.0),
-        (10.5, 10.0),
-        (13.0, 10.0),
-        (15.5, 10.0),
-        (18.0, 10.0),
-        (20.5, 10.0),
-        (23.0, 10.0),
-        (25.5, 10.0),
-        (28.0, 10.0),
-        (30.5, 10.0),
-    ]
-    for cx, h in bars:
-        ax.add_patch(
-            Rectangle(
-                (cx - 0.45, (12 - h) / 2),
-                0.9,
-                h,
-                facecolor=theme.INK,
-                edgecolor="none",
-            )
+    if LOGO_PNG.exists():
+        img = mpimg.imread(LOGO_PNG)
+        # Square mark — width/height in figure fraction calibrated so the
+        # rendered logo is ~0.55in (visible without dominating the page).
+        mark_h = 0.046
+        mark_w = mark_h * (theme.PAGE_H_IN / theme.PAGE_W_IN)
+        # Vertically centred on y=0.962 (the wordmark baseline-centre).
+        ax_logo = fig.add_axes(
+            (MARGIN_X, 0.962 - mark_h / 2, mark_w, mark_h)
         )
-    ax.text(
-        35,
-        6,
+        ax_logo.imshow(img, interpolation="bilinear")
+        ax_logo.axis("off")
+        wordmark_x = MARGIN_X + mark_w + 0.012
+
+    fig.text(
+        wordmark_x,
+        0.962,
         "Unravel",
-        fontsize=18,
+        fontsize=15,
         fontweight="bold",
         color=theme.INK,
         va="center",
@@ -68,281 +64,189 @@ def _draw_logo(fig: plt.Figure, x: float, y: float, height: float) -> None:
     )
 
 
-def _draw_header(fig: plt.Figure, factor: Factor) -> None:
-    _draw_logo(fig, x=0.06, y=0.945, height=0.018)
-
+def _draw_header(fig: plt.Figure) -> None:
+    _draw_logo(fig)
     fig.text(
-        0.94,
-        0.965,
-        "FACTOR FACTSHEET",
-        fontsize=8,
+        RIGHT_X,
+        0.963,
+        "Factor Factsheet",
+        fontsize=8.5,
         color=theme.MUTED,
         ha="right",
         va="center",
-        weight="semibold",
+        weight="medium",
     )
-    fig.text(
-        0.94,
-        0.945,
-        factor.category.upper(),
-        fontsize=7.5,
-        color=theme.MUTED,
-        ha="right",
-        va="center",
-    )
-
-    # Horizontal rule
     fig.add_artist(
         plt.Line2D(
-            [0.06, 0.94], [0.93, 0.93], color=theme.HAIR, linewidth=0.6
+            [MARGIN_X, RIGHT_X], [0.935, 0.935], color=theme.HAIR, linewidth=0.6
         )
     )
 
-    # Title block
+
+def _wrap(text: str, width: int) -> str:
+    return textwrap.fill(text, width=width)
+
+
+def _wrap_paragraphs(text: str, width: int) -> str:
+    return "\n\n".join(_wrap(p.strip().replace("\n", " "), width) for p in text.split("\n\n") if p.strip())
+
+
+def _draw_title_block(fig: plt.Figure, factor: Factor) -> None:
     fig.text(
-        0.06,
+        MARGIN_X,
         0.895,
         factor.name,
-        fontsize=26,
+        fontsize=28,
         fontweight="bold",
         color=theme.INK,
         va="top",
-        ha="left",
     )
     fig.text(
-        0.06,
-        0.855,
-        factor.short_description,
+        MARGIN_X,
+        0.853,
+        _wrap(factor.tagline, width=85),
         fontsize=11,
         color=theme.SUB_INK,
         va="top",
-        ha="left",
-        wrap=True,
+        linespacing=1.4,
     )
 
-    # Badges row
-    badge_y = 0.825
-    badge_x = 0.06
-    for badge in factor.badges:
-        text = fig.text(
-            badge_x + 0.015,
-            badge_y,
-            badge,
-            fontsize=7.5,
-            color=theme.SUB_INK,
-            va="center",
-            ha="left",
-            weight="medium",
-            bbox=dict(
-                boxstyle="round,pad=0.35",
-                facecolor=theme.PANEL,
-                edgecolor=theme.HAIR,
-                linewidth=0.6,
-            ),
-        )
-        # rough advance based on character count
-        badge_x += 0.025 + 0.0065 * len(badge)
 
-
-def _wrap_paragraph(text: str, width: int = 95) -> str:
-    paragraphs = [p.strip() for p in text.split("\n\n")]
-    wrapped = []
-    for para in paragraphs:
-        if para.startswith("- ") or para.startswith("  - "):
-            # Preserve bullet structure
-            wrapped.append(para)
-        else:
-            wrapped.append(textwrap.fill(para.replace("\n", " "), width=width))
-    return "\n\n".join(wrapped)
-
-
-def _draw_narrative(fig: plt.Figure, factor: Factor) -> None:
-    # Section label
+def _draw_disclaimer(fig: plt.Figure, y: float) -> None:
+    """Make explicit that the displayed portfolio is illustrative."""
+    text = (
+        "All performance figures below are for an illustrative single-factor "
+        "portfolio constructed from this factor over the Top 40 universe — "
+        "long the highest-ranked assets, short the lowest, rebalanced daily. "
+        "It is not a tradable product; we publish it to demonstrate the edge "
+        "the underlying factor captures in isolation."
+    )
     fig.text(
-        0.06,
-        0.785,
-        "WHAT THIS FACTOR CAPTURES",
-        fontsize=8,
+        MARGIN_X,
+        y,
+        _wrap(text, width=110),
+        fontsize=8.5,
+        style="italic",
         color=theme.MUTED,
-        weight="semibold",
-        va="top",
-    )
-
-    # Effect — pull-quote
-    fig.text(
-        0.06,
-        0.762,
-        textwrap.fill(factor.effect, width=98),
-        fontsize=11.5,
-        color=theme.INK,
-        weight="medium",
-        va="top",
-        linespacing=1.35,
-    )
-
-    # Long description
-    fig.text(
-        0.06,
-        0.665,
-        "OVERVIEW",
-        fontsize=8,
-        color=theme.MUTED,
-        weight="semibold",
-        va="top",
-    )
-    fig.text(
-        0.06,
-        0.645,
-        _wrap_paragraph(factor.long_description, width=105),
-        fontsize=9,
-        color=theme.SUB_INK,
         va="top",
         linespacing=1.45,
     )
 
 
-def _draw_stat_card(
-    fig: plt.Figure, x: float, y: float, w: float, h: float, label: str, value: str
-) -> None:
-    fig.patches.append(
-        Rectangle(
-            (x, y),
-            w,
-            h,
-            transform=fig.transFigure,
-            facecolor=theme.PANEL,
-            edgecolor=theme.HAIR,
-            linewidth=0.6,
-        )
-    )
+def _draw_section_label(fig: plt.Figure, x: float, y: float, label: str) -> None:
     fig.text(
-        x + w / 2,
-        y + h * 0.74,
+        x,
+        y,
         label,
-        fontsize=7,
-        color=theme.MUTED,
-        ha="center",
-        va="center",
-        weight="semibold",
-    )
-    fig.text(
-        x + w / 2,
-        y + h * 0.38,
-        value,
-        fontsize=15,
-        color=theme.INK,
-        ha="center",
-        va="center",
-        weight="bold",
-    )
-
-
-def _draw_stat_strip(fig: plt.Figure, stats: metrics.Stats, y: float) -> None:
-    fig.text(
-        0.06,
-        y + 0.075,
-        "KEY METRICS",
         fontsize=8,
         color=theme.MUTED,
         weight="semibold",
         va="top",
     )
 
+
+def _draw_effect(fig: plt.Figure, factor: Factor, y_label: float, y_body: float) -> None:
+    _draw_section_label(fig, MARGIN_X, y_label, "THE EDGE")
+    fig.text(
+        MARGIN_X,
+        y_body,
+        _wrap(factor.effect, width=98),
+        fontsize=10.5,
+        color=theme.INK,
+        weight="medium",
+        va="top",
+        linespacing=1.45,
+    )
+
+
+def _draw_overview(fig: plt.Figure, factor: Factor, y_label: float, y_body: float) -> None:
+    _draw_section_label(fig, MARGIN_X, y_label, "OVERVIEW")
+    fig.text(
+        MARGIN_X,
+        y_body,
+        _wrap_paragraphs(factor.long_description, width=108),
+        fontsize=9,
+        color=theme.SUB_INK,
+        va="top",
+        linespacing=1.5,
+    )
+
+
+def _draw_kpi_strip(fig: plt.Figure, stats: metrics.Stats, y: float) -> None:
     cards = [
         ("CAGR", metrics.fmt_pct(stats.cagr)),
-        ("VOL (ANN.)", metrics.fmt_pct(stats.annual_vol)),
-        ("SHARPE", metrics.fmt_ratio(stats.sharpe)),
-        ("SORTINO", metrics.fmt_ratio(stats.sortino)),
-        ("MAX DD", metrics.fmt_pct(stats.max_drawdown)),
-        ("CALMAR", metrics.fmt_ratio(stats.calmar)),
+        ("Volatility", metrics.fmt_pct(stats.annual_vol)),
+        ("Sharpe", metrics.fmt_ratio(stats.sharpe)),
+        ("Sortino", metrics.fmt_ratio(stats.sortino)),
+        ("Max Drawdown", metrics.fmt_pct(stats.max_drawdown)),
+        ("Calmar", metrics.fmt_ratio(stats.calmar)),
     ]
     n = len(cards)
-    left = 0.06
-    right = 0.94
-    gap = 0.01
-    card_w = (right - left - gap * (n - 1)) / n
+    width = RIGHT_X - MARGIN_X
+    card_w = width / n
     card_h = 0.052
     for i, (label, value) in enumerate(cards):
-        _draw_stat_card(
-            fig,
-            x=left + i * (card_w + gap),
-            y=y,
-            w=card_w,
-            h=card_h,
-            label=label,
-            value=value,
+        x = MARGIN_X + i * card_w
+        # Subtle column separators rather than card chrome — feels more designed.
+        if i > 0:
+            fig.add_artist(
+                plt.Line2D(
+                    [x, x],
+                    [y, y + card_h],
+                    color=theme.HAIR,
+                    linewidth=0.5,
+                )
+            )
+        fig.text(
+            x + card_w / 2,
+            y + card_h * 0.72,
+            label,
+            fontsize=7.5,
+            color=theme.MUTED,
+            ha="center",
+            va="center",
+            weight="medium",
         )
-
-
-def _draw_equity_chart(
-    fig: plt.Figure, returns: pd.Series, stats: metrics.Stats
-) -> None:
-    fig.text(
-        0.06,
-        0.235,
-        "CUMULATIVE RETURN",
-        fontsize=8,
-        color=theme.MUTED,
-        weight="semibold",
-        va="top",
+        fig.text(
+            x + card_w / 2,
+            y + card_h * 0.32,
+            value,
+            fontsize=16,
+            color=theme.INK,
+            ha="center",
+            va="center",
+            weight="bold",
+        )
+    # Top + bottom rules to anchor the strip
+    fig.add_artist(
+        plt.Line2D(
+            [MARGIN_X, RIGHT_X], [y + card_h, y + card_h], color=theme.HAIR, linewidth=0.5
+        )
     )
-    fig.text(
-        0.94,
-        0.235,
-        f"{stats.start:%b %Y} – {stats.end:%b %Y}  •  Unconstrained, Top 40 Universe",
-        fontsize=7.5,
-        color=theme.MUTED,
-        ha="right",
-        va="top",
-    )
-
-    ax_eq = fig.add_axes((0.06, 0.085, 0.88, 0.14))
-    eq = metrics.equity_curve(returns)
-    ax_eq.plot(eq.index, eq.values, color=theme.ACCENT, linewidth=1.6)
-    ax_eq.fill_between(
-        eq.index, 1.0, eq.values, where=(eq.values >= 1.0),
-        color=theme.ACCENT, alpha=0.06, linewidth=0
-    )
-    ax_eq.axhline(1.0, color=theme.HAIR, linewidth=0.5, zorder=0)
-    ax_eq.grid(axis="y", linewidth=0.4, alpha=0.7)
-    ax_eq.set_ylabel("Growth of $1", fontsize=7.5, color=theme.MUTED)
-    ax_eq.xaxis.set_major_locator(mdates.YearLocator())
-    ax_eq.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
-    ax_eq.spines["left"].set_color(theme.HAIR)
-    ax_eq.spines["bottom"].set_color(theme.HAIR)
-
-    # Total return callout
-    final = float(eq.iloc[-1])
-    ax_eq.text(
-        eq.index[-1],
-        final,
-        f"  {metrics.fmt_signed_pct(stats.total_return)} total",
-        fontsize=8,
-        color=theme.ACCENT,
-        weight="semibold",
-        va="center",
-        ha="left",
+    fig.add_artist(
+        plt.Line2D([MARGIN_X, RIGHT_X], [y, y], color=theme.HAIR, linewidth=0.5)
     )
 
 
 def _draw_footer(fig: plt.Figure, factor: Factor) -> None:
     fig.add_artist(
         plt.Line2D(
-            [0.06, 0.94], [0.055, 0.055], color=theme.HAIR, linewidth=0.5
+            [MARGIN_X, RIGHT_X], [0.052, 0.052], color=theme.HAIR, linewidth=0.5
         )
     )
     fig.text(
-        0.06,
-        0.035,
-        f"unravel.finance  •  factor: {factor.portfolio_id}",
-        fontsize=7,
-        color=theme.MUTED,
+        MARGIN_X,
+        0.032,
+        factor.detail_url,
+        fontsize=7.5,
+        color=theme.SUB_INK,
+        weight="medium",
         va="center",
     )
     fig.text(
-        0.94,
-        0.035,
-        "Page 1 of 2  •  Narrative & Performance",
+        RIGHT_X,
+        0.032,
+        f"Page 1 of 2  ·  Generated {_date.today():%b %Y}",
         fontsize=7,
         color=theme.MUTED,
         ha="right",
@@ -354,9 +258,41 @@ def render_page_one(
     factor: Factor, returns: pd.Series, stats: metrics.Stats
 ) -> plt.Figure:
     fig = theme.new_page()
-    _draw_header(fig, factor)
-    _draw_narrative(fig, factor)
-    _draw_stat_strip(fig, stats, y=0.31)
-    _draw_equity_chart(fig, returns, stats)
+    _draw_header(fig)
+    _draw_title_block(fig, factor)
+    _draw_disclaimer(fig, y=0.798)
+
+    # Narrative columns
+    _draw_effect(fig, factor, y_label=0.735, y_body=0.715)
+    _draw_overview(fig, factor, y_label=0.605, y_body=0.585)
+
+    # Heatmap (centerpiece)
+    fig.text(
+        MARGIN_X,
+        0.345,
+        "MONTHLY RETURNS (%)",
+        fontsize=8,
+        color=theme.MUTED,
+        weight="semibold",
+        va="top",
+    )
+    fig.text(
+        RIGHT_X,
+        0.345,
+        f"{stats.start:%b %Y} – {stats.end:%b %Y}",
+        fontsize=7.5,
+        color=theme.MUTED,
+        ha="right",
+        va="top",
+    )
+    render_monthly_heatmap(
+        fig,
+        returns,
+        rect=(MARGIN_X, 0.155, RIGHT_X - MARGIN_X, 0.17),
+        title="",
+    )
+
+    # KPI strip below the heatmap
+    _draw_kpi_strip(fig, stats, y=0.085)
     _draw_footer(fig, factor)
     return fig
