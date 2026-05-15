@@ -1,4 +1,9 @@
-"""Performance statistics for a daily-returns time series."""
+"""Performance statistics for a daily-returns time series.
+
+All metric math is delegated to `finml_utils.quantstats.stats` so we don't
+reinvent canonical calculations. `periods=365` everywhere because crypto
+trades every calendar day (the upstream default is 252 trading days).
+"""
 
 from __future__ import annotations
 
@@ -7,6 +12,7 @@ from datetime import date
 
 import numpy as np
 import pandas as pd
+from finml_utils.quantstats import stats as qs
 
 TRADING_DAYS = 365  # crypto trades 7 days a week
 
@@ -28,17 +34,12 @@ class Stats:
     worst_month: float
 
 
-def _equity(returns: pd.Series) -> pd.Series:
+def equity_curve(returns: pd.Series) -> pd.Series:
     return (1.0 + returns.fillna(0.0)).cumprod()
 
 
-def equity_curve(returns: pd.Series) -> pd.Series:
-    return _equity(returns)
-
-
 def drawdown(returns: pd.Series) -> pd.Series:
-    eq = _equity(returns)
-    return eq / eq.cummax() - 1.0
+    return qs.to_drawdown_series(returns)
 
 
 def monthly_returns(returns: pd.Series) -> pd.Series:
@@ -50,67 +51,42 @@ def compute_stats(returns: pd.Series) -> Stats:
     if r.empty:
         raise ValueError("Returns series is empty")
 
-    eq = _equity(r)
-    years = (r.index[-1] - r.index[0]).days / 365.25
-    total_return = float(eq.iloc[-1] - 1.0)
-    cagr = float(eq.iloc[-1] ** (1 / years) - 1.0) if years > 0 else float("nan")
-
-    daily_vol = float(r.std())
-    annual_vol = daily_vol * np.sqrt(TRADING_DAYS)
-    mean_r = float(r.mean())
-    sharpe = (mean_r / daily_vol) * np.sqrt(TRADING_DAYS) if daily_vol > 0 else float("nan")
-
-    downside = r[r < 0]
-    downside_vol = float(downside.std()) if not downside.empty else float("nan")
-    sortino = (
-        (mean_r / downside_vol) * np.sqrt(TRADING_DAYS)
-        if downside_vol and downside_vol > 0
-        else float("nan")
-    )
-
-    dd = drawdown(r)
-    max_dd = float(dd.min())
-    calmar = (cagr / abs(max_dd)) if max_dd < 0 else float("nan")
-
-    hit_rate = float((r > 0).mean())
-
-    m = monthly_returns(r)
-    best_month = float(m.max()) if not m.empty else float("nan")
-    worst_month = float(m.min()) if not m.empty else float("nan")
+    cagr = float(qs.cagr(r, periods=TRADING_DAYS))
+    max_dd = float(qs.max_drawdown(r))
+    # qs.calmar uses its default periods=252 internally; recompute with our
+    # crypto period instead so the ratio is consistent with our CAGR figure.
+    calmar = cagr / abs(max_dd) if max_dd < 0 else float("nan")
 
     return Stats(
         start=r.index[0].date(),
         end=r.index[-1].date(),
-        years=years,
-        total_return=total_return,
+        years=(r.index[-1] - r.index[0]).days / 365.25,
+        total_return=float(qs.comp(r)),
         cagr=cagr,
-        annual_vol=annual_vol,
-        sharpe=sharpe,
-        sortino=sortino,
+        annual_vol=float(qs.volatility(r, periods=TRADING_DAYS)),
+        sharpe=float(qs.sharpe(r, periods=TRADING_DAYS)),
+        sortino=float(qs.sortino(r, periods=TRADING_DAYS)),
         max_drawdown=max_dd,
         calmar=calmar,
-        hit_rate=hit_rate,
-        best_month=best_month,
-        worst_month=worst_month,
+        hit_rate=float(qs.win_rate(r, compounded=False)),
+        best_month=float(qs.best(r, aggregate="ME")),
+        worst_month=float(qs.worst(r, aggregate="ME")),
     )
 
 
 def fmt_pct(x: float, digits: int = 1) -> str:
     if x is None or np.isnan(x):
         return "—"
-    formatted = f"{x * 100:.{digits}f}%"
-    return formatted.replace("-", "−")
+    return f"{x * 100:.{digits}f}%".replace("-", "−")
 
 
 def fmt_signed_pct(x: float, digits: int = 1) -> str:
     if x is None or np.isnan(x):
         return "—"
-    formatted = f"{x * 100:+.{digits}f}%"
-    return formatted.replace("-", "−").replace("+", "+")
+    return f"{x * 100:+.{digits}f}%".replace("-", "−")
 
 
 def fmt_ratio(x: float, digits: int = 2) -> str:
     if x is None or np.isnan(x):
         return "—"
-    formatted = f"{x:.{digits}f}"
-    return formatted.replace("-", "−")
+    return f"{x:.{digits}f}".replace("-", "−")

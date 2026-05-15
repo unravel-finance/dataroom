@@ -4,6 +4,7 @@ pandas
 numpy
 requests
 alphalens-reloaded
+finml-utils
 seaborn
 pyyaml
 joblib

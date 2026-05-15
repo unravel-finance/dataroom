@@ -319,6 +319,10 @@ def _quantile_daily_returns(clean: pd.DataFrame) -> tuple[pd.DataFrame, str]:
 def _plot_cumulative_quantile_returns(ax: plt.Axes, clean: pd.DataFrame) -> None:
     """Cumulative-return path per quantile, using AlphaLens' cumulative_returns
     helper so the math is identical to AlphaLens' plot_cumulative_returns_by_quantile.
+
+    Log-scale y-axis — AlphaLens uses the same convention for this chart so
+    that strong-spread factors don't squish Q2/Q3/Q4 against the x-axis when
+    Q5 compounds to a large multiple (or Q1 collapses to a fraction).
     """
     by_q, period = _quantile_daily_returns(clean)
     cum = by_q.apply(alphalens.performance.cumulative_returns)
@@ -331,13 +335,14 @@ def _plot_cumulative_quantile_returns(ax: plt.Axes, clean: pd.DataFrame) -> None
             linewidth=1.2,
             color=colors[i],
         )
+    ax.set_yscale("log")
     ax.axhline(1.0, color=theme.HAIR, linewidth=0.5)
     ax.set_title(
         f"Cumulative Alpha by Quantile  ·  demeaned, {period}",
         loc="left",
         color=theme.INK,
     )
-    ax.set_ylabel("Growth of 1.00")
+    ax.set_ylabel("Growth of 1.00  (log scale)")
     ax.grid(axis="y", linewidth=0.4, alpha=0.6)
     ax.legend(loc="upper left", ncol=len(cum.columns), fontsize=7, columnspacing=1.2)
     _strip_top_right(ax)
@@ -345,11 +350,15 @@ def _plot_cumulative_quantile_returns(ax: plt.Axes, clean: pd.DataFrame) -> None
 
 
 def _plot_top_minus_bottom(ax: plt.Axes, clean: pd.DataFrame) -> None:
-    """Long–short spread, always plotted in the *profitable* direction.
+    """Top-minus-bottom quantile mean return — matches AlphaLens'
+    plot_top_minus_bottom_quantile_mean_return: the daily spread (in bps) plus
+    a 21-day moving average. We previously rendered this as a cumulative
+    equity curve, but that produced a 5-year compounded multiple that's
+    visually disconnected from the AlphaLens reference output (and the
+    underlying daily spread of ~20 bps for retail_flow).
 
-    Direction is chosen from the historical quantile means, not the mean IC.
-    A near-zero IC (e.g. −0.009) doesn't reliably tell us the sign, while the
-    quantile means do — they're the actual P&L of the portfolio we'd build.
+    Direction is picked from the historical quantile P&L — the chart
+    always reads in the profitable direction.
     """
     by_q, period = _quantile_daily_returns(clean)
     if by_q.shape[1] < 2:
@@ -357,33 +366,50 @@ def _plot_top_minus_bottom(ax: plt.Axes, clean: pd.DataFrame) -> None:
         return
     top_q = by_q.columns.max()
     bot_q = by_q.columns.min()
-    # Pick the spread direction from the historical mean P&L of each leg.
     if by_q[top_q].mean() >= by_q[bot_q].mean():
         long_q, short_q = top_q, bot_q
     else:
         long_q, short_q = bot_q, top_q
 
-    spread = by_q[long_q] - by_q[short_q]
-    eq = alphalens.performance.cumulative_returns(spread)
+    spread_bps = (by_q[long_q] - by_q[short_q]) * 1e4
+    ma = spread_bps.rolling(21, min_periods=5).mean()
 
-    ax.plot(eq.index, eq.values, color=theme.ACCENT, linewidth=1.6)
-    ax.fill_between(
-        eq.index,
-        1.0,
-        eq.values,
-        where=(eq.values >= 1.0),
-        color=theme.ACCENT,
-        alpha=0.08,
-        linewidth=0,
+    # Daily spread as soft grey bars (AlphaLens uses thin vertical lines).
+    ax.bar(
+        spread_bps.index,
+        spread_bps.values,
+        color=theme.HAIR,
+        edgecolor="none",
+        width=2.0,
+        zorder=1,
     )
-    ax.axhline(1.0, color=theme.HAIR, linewidth=0.5)
+    # 21-day MA in brand teal — the signal we're really after.
+    ax.plot(
+        ma.index,
+        ma.values,
+        color=theme.ACCENT,
+        linewidth=1.4,
+        zorder=2,
+        label="21-day MA",
+    )
+    mean_spread = float(spread_bps.mean())
+    ax.axhline(
+        mean_spread,
+        color=theme.INK,
+        linewidth=0.9,
+        linestyle=(0, (3, 2)),
+        zorder=3,
+        label=f"Mean  {mean_spread:+.1f} bps".replace("-", theme.MINUS),
+    )
+    ax.axhline(0, color=theme.HAIR, linewidth=0.6)
     ax.set_title(
-        f"Long–Short Spread  (long Q{long_q}, short Q{short_q})",
+        f"Top minus Bottom Quantile Spread  (long Q{long_q}, short Q{short_q})",
         loc="left",
         color=theme.INK,
     )
-    ax.set_ylabel("Growth of 1.00")
+    ax.set_ylabel(f"Spread ({period}, bps)")
     ax.grid(axis="y", linewidth=0.4, alpha=0.6)
+    ax.legend(loc="upper right", fontsize=7)
     _strip_top_right(ax)
     _set_year_ticks(ax)
 
