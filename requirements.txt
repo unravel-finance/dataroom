@@ -4,7 +4,12 @@ pandas
 numpy
 requests
 alphalens-reloaded
+# finml-utils[plotting] would pin matplotlib==3.9.2; install plain + the only
+# missing transitive dep (tabulate is used by the reports module that
+# quantstats/__init__.py eagerly imports, so we need it even though we only
+# touch the stats functions).
 finml-utils
+tabulate
 seaborn
 pyyaml
 joblib
