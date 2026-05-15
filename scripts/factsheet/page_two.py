@@ -302,18 +302,6 @@ def _plot_ic_with_stats(ax: plt.Axes, clean: pd.DataFrame) -> None:
         va="bottom",
         ha="left",
     )
-    if mean_ic < 0:
-        ax.text(
-            1.0,
-            1.02,
-            "Negative IC is by design — factor trades contrarian.",
-            transform=ax.transAxes,
-            fontsize=7.5,
-            color=theme.MUTED,
-            style="italic",
-            va="bottom",
-            ha="right",
-        )
 
 
 def _quantile_daily_returns(clean: pd.DataFrame) -> tuple[pd.DataFrame, str]:
@@ -357,12 +345,11 @@ def _plot_cumulative_quantile_returns(ax: plt.Axes, clean: pd.DataFrame) -> None
 
 
 def _plot_top_minus_bottom(ax: plt.Axes, clean: pd.DataFrame) -> None:
-    """Long–short spread.
+    """Long–short spread, always plotted in the *profitable* direction.
 
-    For factors with positive mean IC we show Q_top − Q_bot (factor's natural
-    direction). For contrarian factors (mean IC < 0) we flip to Q_bot − Q_top
-    so the chart reads in the direction the tradable portfolio on page 1
-    actually trades; the title makes the flip explicit.
+    Direction is chosen from the historical quantile means, not the mean IC.
+    A near-zero IC (e.g. −0.009) doesn't reliably tell us the sign, while the
+    quantile means do — they're the actual P&L of the portfolio we'd build.
     """
     by_q, period = _quantile_daily_returns(clean)
     if by_q.shape[1] < 2:
@@ -370,9 +357,11 @@ def _plot_top_minus_bottom(ax: plt.Axes, clean: pd.DataFrame) -> None:
         return
     top_q = by_q.columns.max()
     bot_q = by_q.columns.min()
-    mean_ic = _mean_ic(clean, period)
-    contrarian = mean_ic < 0
-    long_q, short_q = (bot_q, top_q) if contrarian else (top_q, bot_q)
+    # Pick the spread direction from the historical mean P&L of each leg.
+    if by_q[top_q].mean() >= by_q[bot_q].mean():
+        long_q, short_q = top_q, bot_q
+    else:
+        long_q, short_q = bot_q, top_q
 
     spread = by_q[long_q] - by_q[short_q]
     eq = alphalens.performance.cumulative_returns(spread)
@@ -388,9 +377,8 @@ def _plot_top_minus_bottom(ax: plt.Axes, clean: pd.DataFrame) -> None:
         linewidth=0,
     )
     ax.axhline(1.0, color=theme.HAIR, linewidth=0.5)
-    direction_note = "  ·  contrarian" if contrarian else ""
     ax.set_title(
-        f"Long–Short Spread  (long Q{long_q}, short Q{short_q}){direction_note}",
+        f"Long–Short Spread  (long Q{long_q}, short Q{short_q})",
         loc="left",
         color=theme.INK,
     )
