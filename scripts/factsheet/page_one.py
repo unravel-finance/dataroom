@@ -511,64 +511,60 @@ def _draw_cumulative_chart(
     ax.set_xlim(0, len(eq) - 1)
     ax.set_ylim(min(0.92, float(y_arr.min()) * 0.98), float(y_arr.max()) * 1.10)
 
-    total_pct = (float(eq.iloc[-1]) - 1.0) * 100
-    sign = "+" if total_pct >= 0 else theme.MINUS
-    ax.annotate(
-        f"{sign}{abs(total_pct):.0f}%",
-        xy=(x[-1], float(eq.iloc[-1])),
-        xytext=(-6, 8),
-        textcoords="offset points",
-        fontsize=10,
-        color=theme.ACCENT,
-        weight="bold",
-        ha="right",
-        va="bottom",
-        family=theme.display_font(),
-    )
-
 
 # ---------- disclaimer + about + footer ---------------------------------------
 
 
 def _draw_disclaimer_and_footer(fig: plt.Figure, factor: Factor) -> None:
-    note = (
-        f"Note — Performance shown is for an illustrative single-factor "
-        f"portfolio: positions sized proportionally to the factor signal "
-        f"across the Top {factor.default_universe} universe, rebalanced "
-        "daily. Provided to demonstrate the underlying factor's signal; "
-        "not a tradable product. Past performance is not indicative of "
-        "future results."
-    )
+    # --- About Unravel — a visible, labelled block (not fine print) ---
+    _hline(fig, 0.092, lw=0.6)
     fig.text(
         MARGIN_X,
-        0.075,
-        _wrap(note, width=170),
-        fontsize=6.8,
-        style="italic",
-        color=theme.MUTED,
+        0.082,
+        "ABOUT UNRAVEL",
+        fontsize=7.5,
+        color=theme.INK,
+        weight="semibold",
         va="top",
-        linespacing=1.4,
     )
     about = (
         "Unravel publishes a catalog of cross-sectional, market-neutral "
-        "crypto factors with point-in-time historical data and live "
-        "signals. See unravel.finance for the full set, methodology, "
-        "and API access."
+        "crypto factors — each with point-in-time historical data and live "
+        "signals. Explore the full catalog, methodology and API at "
+        "unravel.finance."
+    )
+    fig.text(
+        MARGIN_X + 0.155,
+        0.082,
+        _wrap(about, width=118),
+        fontsize=8,
+        color=theme.SUB_INK,
+        va="top",
+        linespacing=1.45,
+    )
+
+    # --- Legal fine print ---
+    note = (
+        "Note — Performance is for an illustrative single-factor portfolio "
+        f"(positions sized proportionally to the factor signal across the "
+        f"Top {factor.default_universe} universe, rebalanced daily); "
+        "demonstrative only, not a tradable product. Past performance is "
+        "not indicative of future results."
     )
     fig.text(
         MARGIN_X,
-        0.046,
-        _wrap(about, width=170),
-        fontsize=6.8,
+        0.042,
+        _wrap(note, width=185),
+        fontsize=6.3,
         style="italic",
         color=theme.MUTED,
         va="top",
-        linespacing=1.4,
+        linespacing=1.35,
     )
-    _hline(fig, 0.028, lw=0.5)
+    _hline(fig, 0.024, lw=0.5)
     fig.text(
         MARGIN_X,
-        0.015,
+        0.012,
         factor.detail_url,
         fontsize=7.5,
         color=theme.SUB_INK,
@@ -577,7 +573,7 @@ def _draw_disclaimer_and_footer(fig: plt.Figure, factor: Factor) -> None:
     )
     fig.text(
         RIGHT_X,
-        0.015,
+        0.012,
         f"Page 1 of 2    ·    {_date.today():%b %Y}",
         fontsize=7.5,
         color=theme.MUTED,

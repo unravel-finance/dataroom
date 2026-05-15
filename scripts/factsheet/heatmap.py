@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import calendar
 
-import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -132,47 +131,49 @@ def render_monthly_heatmap(
     ax_ytd = fig.add_axes((left + months_w + gutter, bottom, ytd_w, height))
 
     # ---- Months grid ----
+    # Draw every cell as a vector Rectangle instead of imshow. imshow gets
+    # embedded in the PDF as a raster and re-sampled by the downstream
+    # rasteriser, which leaves faint grey seams; explicit patches tile
+    # perfectly and stay crisp at any zoom.
     matrix = grid.values.astype("float64")
     rows, cols = matrix.shape
-    ax_grid.imshow(
-        matrix,
-        aspect="auto",
-        cmap=_DIVERGING,
-        norm=norm,
-        origin="upper",
-        interpolation="nearest",
-    )
-    # Empty cells (NaN) — overlay light grey for missing months.
-    nan_mask = np.isnan(matrix)
-    if nan_mask.any():
-        overlay = np.where(nan_mask, 1.0, np.nan)
-        ax_grid.imshow(
-            overlay,
-            aspect="auto",
-            cmap=mcolors.ListedColormap(["#F5F5F5"]),
-            origin="upper",
-            interpolation="nearest",
-            alpha=1.0,
-        )
-
     for r in range(rows):
         for c in range(cols):
             value = matrix[r, c]
-            if pd.isna(value):
-                continue
-            cell_rgba = _DIVERGING(norm(value))
-            # Right-align so column values line up visually even with
-            # proportional figures — mpl can't toggle OpenType tnum at runtime.
-            ax_grid.text(
-                c + 0.42,
-                r,
-                _fmt_cell(value),
-                ha="right",
-                va="center",
-                fontsize=7.5,
-                color=_text_color_for(cell_rgba),
+            if np.isnan(value):
+                face = "#F5F5F5"  # empty / future month
+                txt = ""
+                txt_color = theme.MUTED
+            else:
+                rgba = _DIVERGING(norm(value))
+                face = rgba
+                txt = _fmt_cell(value)
+                txt_color = _text_color_for(rgba)
+            ax_grid.add_patch(
+                Rectangle(
+                    (c - 0.5, r - 0.5),
+                    1.0,
+                    1.0,
+                    facecolor=face,
+                    edgecolor="none",
+                    antialiased=False,
+                )
             )
+            if txt:
+                # Right-align so column values line up visually even with
+                # proportional figures (mpl can't toggle OpenType tnum).
+                ax_grid.text(
+                    c + 0.42,
+                    r,
+                    txt,
+                    ha="right",
+                    va="center",
+                    fontsize=7.5,
+                    color=txt_color,
+                )
 
+    ax_grid.set_xlim(-0.5, cols - 0.5)
+    ax_grid.set_ylim(rows - 0.5, -0.5)  # origin upper
     ax_grid.set_xticks(range(cols))
     ax_grid.set_xticklabels(grid.columns, fontsize=7.5, color=theme.MUTED)
     ax_grid.set_yticks(range(rows))
@@ -181,13 +182,9 @@ def render_monthly_heatmap(
         [f"’{y % 100:02d}" for y in years], fontsize=8, color=theme.MUTED
     )
     ax_grid.tick_params(axis="both", which="both", length=0)
+    ax_grid.grid(False)
     for spine in ax_grid.spines.values():
         spine.set_visible(False)
-
-    # No explicit cell separators — imshow with interpolation="nearest"
-    # already produces clean cell edges, and the previous 1.2pt white
-    # axhlines/axvlines antialiased into visible grey hairlines that
-    # appeared to cut across coloured cells.
 
     # ---- YTD column ----
     ytd_aligned = pd.Series([ytd.get(y, np.nan) for y in years], index=years).values
@@ -231,12 +228,10 @@ def render_monthly_heatmap(
     ax_ytd.set_xticklabels([YTD_COL_LABEL], fontsize=7.5, color=theme.MUTED, weight="medium")
     ax_ytd.set_yticks([])
     ax_ytd.tick_params(axis="both", which="both", length=0)
+    ax_ytd.grid(False)
 
-    # Outline the YTD column to separate it clearly from the heatmap.
-    for spine_name, spine in ax_ytd.spines.items():
+    # Outline the whole YTD column to separate it from the months grid.
+    for spine in ax_ytd.spines.values():
         spine.set_visible(True)
         spine.set_color(theme.HAIR)
         spine.set_linewidth(0.7)
-
-    for y in range(len(years) + 1):
-        ax_ytd.axhline(y - 0.5, color=theme.HAIR, linewidth=0.5)
