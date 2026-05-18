@@ -25,6 +25,7 @@ from matplotlib.gridspec import GridSpec
 from scripts.factors_catalog import Factor
 from scripts.factsheet import metrics, theme
 from scripts.factsheet.al_utils import clean_factor_data, quantile_palette
+from scripts.factsheet.justify import _render_justified_block
 
 MARGIN_X = 0.07
 RIGHT_X = 1.0 - MARGIN_X
@@ -215,14 +216,16 @@ def _draw_about_and_notice(fig: plt.Figure) -> None:
             linewidth=0.6,
         )
     )
-    fig.text(
-        MARGIN_X,
-        notice_body_top,
-        notice_wrapped,
+    _render_justified_block(
+        fig,
+        x_frac=MARGIN_X,
+        y_top=notice_body_top,
+        column_width_frac=RIGHT_X - MARGIN_X,
+        text=_NOTICE,
         fontsize=5.8,
         color=theme.MUTED,
-        va="top",
         linespacing=1.42,
+        wrap_chars=164,
     )
 
 
