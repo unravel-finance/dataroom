@@ -30,6 +30,7 @@ import pandas as pd
 
 from scripts.factors_catalog import Factor
 from scripts.factsheet import metrics, theme
+from scripts.factsheet.al_utils import accent_by_magnitude
 from scripts.factsheet.buttons import draw_link_button
 from scripts.factsheet.justify import _render_justified_block
 
@@ -172,7 +173,7 @@ def _draw_top_right_quantile_bars(fig: plt.Figure, clean: pd.DataFrame) -> None:
     ax.bar(
         range(len(quantiles)),
         values,
-        color=theme.MUTED,
+        color=accent_by_magnitude(values),
         edgecolor="none",
         width=0.55,  # thin bars, clear gaps between buckets
     )
@@ -288,11 +289,13 @@ def _draw_section_eyebrow(
     *,
     right_label: str = "",
     sub_label: str = "",
+    sub_label_wrap: int = 140,
 ) -> None:
     """Section divider. Title left + optional caption right + thin rule above.
 
     When ``sub_label`` is set it sits underneath the title as a muted
-    one-liner."""
+    line, wrapped at ``sub_label_wrap`` chars (narrow it when a right-side
+    control shares the header row so the text stays clear of it)."""
     _hline(fig, y + 0.013, lw=0.6)
     fig.text(
         MARGIN_X,
@@ -318,8 +321,8 @@ def _draw_section_eyebrow(
         # the right margin even on factors with long universe descriptions.
         fig.text(
             MARGIN_X,
-            y - 0.024,
-            _wrap(sub_label, width=140),
+            y - 0.013,
+            _wrap(sub_label, width=sub_label_wrap),
             fontsize=7.5,
             color=theme.MUTED,
             va="top",
@@ -606,20 +609,23 @@ def render_page_one(
             "sized by the factor's cross-sectional strength. "
             "Rebalanced daily."
         ),
+        # Narrow wrap so the 2-line caption stays on the left, clear of the
+        # download button sharing the header row.
+        sub_label_wrap=72,
     )
     # Secondary download — daily returns CSV for this illustrative portfolio.
-    # Sits at the right of the section header, just below its divider rule
-    # (the report-period metadata moved next to the Performance title).
+    # Right of the section header, vertically centred on the title row.
     ret_btn_w = 0.19
+    ret_btn_h = 0.018
     draw_link_button(
         fig,
         RIGHT_X - ret_btn_w,
-        0.512,
+        0.520 - 0.00475 - ret_btn_h / 2,
         ret_btn_w,
         "Download Returns (CSV)",
         factor.returns_csv_url,
         primary=False,
-        height=0.018,
+        height=ret_btn_h,
         fontsize=7,
     )
 

@@ -49,3 +49,14 @@ def quantile_palette(n: int) -> list[str]:
     # Light accent-tinted grey for Q1 up to the brand accent for the top.
     ramp = sns.blend_palette(["#D9D9D9", theme.ACCENT_SOFT, theme.ACCENT], n)
     return [_to_hex(rgb) for rgb in ramp]
+
+
+def accent_by_magnitude(values, *, floor: float = 0.32) -> list[str]:
+    """One brand-accent shade per value, intensity scaled by |value|.
+
+    The largest-magnitude bar gets the full accent; smaller bars fade toward
+    a light tint but never below ``floor`` so they stay visible on white."""
+    cmap = sns.light_palette(theme.ACCENT, as_cmap=True)
+    mags = [abs(float(v)) for v in values]
+    vmax = max(mags, default=0.0) or 1.0
+    return [_to_hex(cmap(floor + (1.0 - floor) * (m / vmax))) for m in mags]

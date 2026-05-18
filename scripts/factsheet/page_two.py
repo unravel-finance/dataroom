@@ -220,21 +220,21 @@ def _draw_about_and_notice(fig: plt.Figure, factor: Factor) -> None:
     # --- About Unravel — proper section stacked above the notice ---
     btn_gap = 0.02
     btn_w = (COL_WIDTH - btn_gap) / 2
-    buttons_y = notice_head_y + 0.022
 
     about_line_h = (7.5 * 1.45 / 72.0) / theme.PAGE_H_IN
     n_about = textwrap.fill(_ABOUT, width=_ABOUT_WRAP).count("\n") + 1
 
-    # Inline book-a-call prompt — sits between the About copy and the
-    # further-materials buttons; the whole line links to the booking page.
+    # Inline book-a-call prompt — sits *below* the further-materials buttons;
+    # the whole line links to the booking page.
     contact_text = (
         "Have further questions? Book a call with our team "
         "— unravel.finance/booking"
     )
     contact_line_h = (7.5 * 1.4 / 72.0) / theme.PAGE_H_IN
-    contact_top = buttons_y + BTN_H + 0.006 + contact_line_h
-    about_body_top = contact_top + 0.006 + n_about * about_line_h
-    about_head_y = about_body_top + 0.024
+    contact_top = notice_head_y + 0.014 + contact_line_h
+    buttons_y = contact_top + 0.010
+    about_body_top = buttons_y + BTN_H + 0.012 + n_about * about_line_h
+    about_head_y = about_body_top + 0.022
 
     _section_rule(fig, about_head_y, "ABOUT UNRAVEL")
     fig.text(
@@ -246,16 +246,6 @@ def _draw_about_and_notice(fig: plt.Figure, factor: Factor) -> None:
         va="top",
         linespacing=1.45,
     )
-    contact = fig.text(
-        MARGIN_X,
-        contact_top,
-        contact_text,
-        fontsize=7.5,
-        color=theme.ACCENT,
-        weight="semibold",
-        va="top",
-    )
-    contact.set_url(BOOKING_URL)
 
     draw_link_button(
         fig,
@@ -280,6 +270,16 @@ def _draw_about_and_notice(fig: plt.Figure, factor: Factor) -> None:
         factor.notebook_url,
         primary=False,
     )
+    contact = fig.text(
+        MARGIN_X,
+        contact_top,
+        contact_text,
+        fontsize=7.5,
+        color=theme.ACCENT,
+        weight="semibold",
+        va="top",
+    )
+    contact.set_url(BOOKING_URL)
 
 
 def _draw_footer(fig: plt.Figure, factor: Factor) -> None:
