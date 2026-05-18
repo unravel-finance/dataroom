@@ -97,12 +97,12 @@ def _draw_logo(fig: plt.Figure) -> None:
     )
 
 
-def _draw_header(fig: plt.Figure, factor: Factor) -> None:
+def _draw_header(fig: plt.Figure, factor: Factor, page: int) -> None:
     _draw_logo(fig)
     fig.text(
         RIGHT_X,
         0.960,
-        f"Generated {_date.today():%b %Y}",
+        f"{_date.today():%b %Y}    ·    {page} / 2",
         fontsize=8,
         color=theme.MUTED,
         ha="right",
@@ -150,6 +150,11 @@ def _draw_top_right_quantile_bars(fig: plt.Figure, clean: pd.DataFrame) -> None:
         )
     except Exception:  # noqa: BLE001 — degrade gracefully
         return
+    # Normalise cumulative period returns to a per-shortest-period rate so
+    # this bar matches page 2's chart (identity for the 1D column we plot).
+    mean_q = mean_q.apply(
+        alphalens.utils.rate_of_return, axis=0, base_period=mean_q.columns[0]
+    )
     period = "1D" if "1D" in mean_q.columns else mean_q.columns[0]
     values = mean_q[period].values * 1e4  # → bps
     quantiles = list(mean_q.index)
@@ -534,7 +539,7 @@ def _draw_cumulative_chart(
 # ---------- disclaimer + about + footer ---------------------------------------
 
 
-def _draw_disclaimer_and_footer(fig: plt.Figure, factor: Factor) -> None:
+def _draw_disclaimer(fig: plt.Figure, factor: Factor) -> None:
     # Short illustrative-portfolio note (the full Notice & Disclaimer and the
     # About Unravel block live on page 2).
     note = (
@@ -553,25 +558,6 @@ def _draw_disclaimer_and_footer(fig: plt.Figure, factor: Factor) -> None:
         color=theme.MUTED,
         va="top",
         linespacing=1.35,
-    )
-    _hline(fig, 0.030, lw=0.5)
-    fig.text(
-        MARGIN_X,
-        0.018,
-        factor.detail_url,
-        fontsize=7.5,
-        color=theme.SUB_INK,
-        weight="medium",
-        va="center",
-    )
-    fig.text(
-        RIGHT_X,
-        0.018,
-        f"Page 1 of 2    ·    {_date.today():%b %Y}",
-        fontsize=7.5,
-        color=theme.MUTED,
-        ha="right",
-        va="center",
     )
 
 
@@ -592,7 +578,7 @@ def render_page_one(
     still renders.
     """
     fig = theme.new_page()
-    _draw_header(fig, factor)
+    _draw_header(fig, factor, 1)
     _draw_hero(fig, factor, clean)
     _draw_pull_quote(fig, factor)
 
@@ -647,5 +633,5 @@ def render_page_one(
         fig, returns, rect=(MARGIN_X, 0.118, COL_WIDTH, 0.167)
     )
 
-    _draw_disclaimer_and_footer(fig, factor)
+    _draw_disclaimer(fig, factor)
     return fig

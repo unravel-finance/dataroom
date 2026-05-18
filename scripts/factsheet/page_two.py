@@ -44,7 +44,7 @@ def _set_year_ticks(ax: plt.Axes) -> None:
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
 
 
-def _draw_header(fig: plt.Figure, factor: Factor) -> None:
+def _draw_header(fig: plt.Figure, factor: Factor, page: int) -> None:
     """Header — mirrors page 1: logo + Unravel wordmark left, page label right."""
     wordmark_x = MARGIN_X
     if LOGO_PNG.exists():
@@ -69,7 +69,7 @@ def _draw_header(fig: plt.Figure, factor: Factor) -> None:
     fig.text(
         RIGHT_X,
         0.960,
-        f"Factor Analysis  ·  {factor.name}",
+        f"{_date.today():%b %Y}    ·    {page} / 2",
         fontsize=8,
         color=theme.MUTED,
         ha="right",
@@ -206,14 +206,14 @@ def _section_rule(fig: plt.Figure, y_top: float, label: str) -> None:
 def _draw_about_and_notice(fig: plt.Figure, factor: Factor) -> None:
     """ABOUT UNRAVEL section (heading + rule + body + further-materials
     buttons) stacked above a bottom-aligned NOTICE & DISCLAIMER section."""
-    # --- Notice & Disclaimer — bottom-anchored just above the footer rule ---
+    # --- Notice & Disclaimer body — bottom-anchored near the page foot.
+    # The section title/rule is intentionally omitted; the fine print stands
+    # on its own. notice_head_y is kept purely as the About-block anchor.
     n_lines = textwrap.fill(_NOTICE, width=164).count("\n") + 1
     notice_line_h = (5.8 * 1.42 / 72.0) / theme.PAGE_H_IN
-    # Anchored close to the footer so the chart band can extend lower.
     notice_body_top = 0.038 + n_lines * notice_line_h
     notice_head_y = notice_body_top + 0.018
 
-    _section_rule(fig, notice_head_y, "NOTICE & DISCLAIMER")
     _render_justified_block(
         fig,
         x_frac=MARGIN_X,
@@ -291,32 +291,6 @@ def _draw_about_and_notice(fig: plt.Figure, factor: Factor) -> None:
     contact.set_url(BOOKING_URL)
 
 
-def _draw_footer(fig: plt.Figure, factor: Factor) -> None:
-    fig.add_artist(
-        plt.Line2D(
-            [MARGIN_X, RIGHT_X], [0.030, 0.030], color=theme.HAIR, linewidth=0.5
-        )
-    )
-    fig.text(
-        MARGIN_X,
-        0.017,
-        factor.detail_url,
-        fontsize=7.5,
-        color=theme.SUB_INK,
-        weight="medium",
-        va="center",
-    )
-    fig.text(
-        RIGHT_X,
-        0.017,
-        f"Page 2 of 2    ·    {_date.today():%b %Y}",
-        fontsize=7.5,
-        color=theme.MUTED,
-        ha="right",
-        va="center",
-    )
-
-
 def _percent_formatter(ax: plt.Axes, axis: str = "y") -> None:
     """Format an axis as percent, with the real minus sign."""
     fmt = mtick.PercentFormatter(decimals=0)
@@ -373,6 +347,13 @@ def _plot_mean_return_by_quantile(ax: plt.Axes, clean: pd.DataFrame) -> None:
     mean_q, _ = alphalens.performance.mean_return_by_quantile(
         clean, by_date=False, demeaned=True
     )
+    # mean_return_by_quantile returns *cumulative* period returns, so the 5D
+    # and 10D bars would otherwise be ~5x/10x the 1D bars. Convert each to
+    # the equivalent per-shortest-period (here 1D) rate so the periods are
+    # comparable — this mirrors AlphaLens' own tear sheets.
+    mean_q = mean_q.apply(
+        alphalens.utils.rate_of_return, axis=0, base_period=mean_q.columns[0]
+    )
     periods = [c for c in mean_q.columns if str(c).endswith("D")]
     if not periods:
         periods = list(mean_q.columns)
@@ -409,7 +390,7 @@ def _plot_mean_return_by_quantile(ax: plt.Axes, clean: pd.DataFrame) -> None:
         color=theme.INK,
     )
     ax.set_xlabel("Quantile  (1 = lowest factor value, 5 = highest)")
-    ax.set_ylabel("Alpha (bps / period)")
+    ax.set_ylabel("Alpha (bps / day)")
     ax.legend(loc="upper left", fontsize=7, ncol=n_p)
     ax.grid(axis="y", linewidth=0.4, alpha=0.6)
     _strip_top_right(ax)
@@ -547,7 +528,7 @@ def _plot_cumulative_quantile_returns(ax: plt.Axes, clean: pd.DataFrame) -> None
 
 def _empty_quant_page(factor: Factor, reason: str) -> plt.Figure:
     fig = theme.new_page()
-    _draw_header(fig, factor)
+    _draw_header(fig, factor, 2)
     fig.text(
         0.5,
         0.5,
@@ -557,7 +538,6 @@ def _empty_quant_page(factor: Factor, reason: str) -> plt.Figure:
         ha="center",
         va="center",
     )
-    _draw_footer(fig, factor)
     return fig
 
 
@@ -570,7 +550,7 @@ def render_page_two(
         return _empty_quant_page(factor, f"AlphaLens preparation failed: {exc}")
 
     fig = theme.new_page()
-    _draw_header(fig, factor)
+    _draw_header(fig, factor, 2)
 
     # Three full-width rows: quantile bars, cumulative-by-quantile, IC.
     # Stops above 0.30 so the Notice & Disclaimer block has room below.
@@ -608,5 +588,4 @@ def render_page_two(
             )
 
     _draw_about_and_notice(fig, factor)
-    _draw_footer(fig, factor)
     return fig
