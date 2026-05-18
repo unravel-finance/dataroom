@@ -30,12 +30,22 @@ def clean_factor_data(
         )
 
 
+def _to_hex(rgb) -> str:
+    return "#%02x%02x%02x" % tuple(int(round(c * 255)) for c in rgb[:3])
+
+
+def accent_ramp(n: int) -> list[str]:
+    """`n` shades of the brand accent, darkest first. Used for grouped series
+    (the 1D/5D/10D quantile bars) so they read on-brand instead of grey while
+    staying distinguishable by lightness."""
+    ramp = sns.light_palette(theme.ACCENT, n_colors=n + 1)[1:][::-1]
+    return [_to_hex(rgb) for rgb in ramp]
+
+
 def quantile_palette(n: int) -> list[str]:
-    """Single-hue sequential ramp (light → brand teal) for the n quantile
+    """Single-hue sequential ramp (light → brand accent) for the n quantile
     lines. One colour scheme instead of five distinct hues — quantiles stay
     distinguishable by lightness while the chart stays on-brand."""
-    # Light teal-tinted grey for Q1 up to the brand teal for the top quantile.
+    # Light accent-tinted grey for Q1 up to the brand accent for the top.
     ramp = sns.blend_palette(["#D9D9D9", theme.ACCENT_SOFT, theme.ACCENT], n)
-    return [
-        "#%02x%02x%02x" % tuple(int(round(c * 255)) for c in rgb) for rgb in ramp
-    ]
+    return [_to_hex(rgb) for rgb in ramp]

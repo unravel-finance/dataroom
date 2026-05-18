@@ -21,14 +21,20 @@ import matplotlib.ticker as mtick
 import numpy as np
 import pandas as pd
 from matplotlib.gridspec import GridSpec
+from matplotlib.patches import FancyBboxPatch
 
 from scripts.factors_catalog import Factor
 from scripts.factsheet import metrics, theme
-from scripts.factsheet.al_utils import clean_factor_data, quantile_palette
+from scripts.factsheet.al_utils import (
+    accent_ramp,
+    clean_factor_data,
+    quantile_palette,
+)
 from scripts.factsheet.justify import _render_justified_block
 
 MARGIN_X = 0.07
 RIGHT_X = 1.0 - MARGIN_X
+COL_WIDTH = RIGHT_X - MARGIN_X
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 LOGO_PNG = REPO_ROOT / "branding" / "unravel-logo.png"
 
@@ -160,49 +166,25 @@ _NOTICE = (
 
 _ABOUT = (
     "Unravel publishes a catalog of cross-sectional, market-neutral crypto "
-    "factors — each with point-in-time historical data and live signals. "
-    "Explore the full catalog, methodology and API at unravel.finance."
+    "factors, each delivered with point-in-time historical data and live "
+    "signals. Individual factors are designed to be combined: blended into a "
+    "multi-factor portfolio they diversify away single-factor risk and "
+    "produce a steadier return stream than any one factor alone. Explore the "
+    "full catalog, the multi-factor construction methodology and API access "
+    "at unravel.finance — see the further materials linked below."
 )
 
+_ABOUT_WRAP = 150
+_BTN_H = 0.026
 
-def _draw_about_and_notice(fig: plt.Figure) -> None:
-    """About Unravel block sitting directly above a bottom-aligned Notice &
-    Disclaimer (anchored just above the footer rule at y=0.030)."""
-    notice_wrapped = textwrap.fill(_NOTICE, width=164)
-    n_lines = notice_wrapped.count("\n") + 1
-    notice_line_h = (5.8 * 1.42 / 72.0) / theme.PAGE_H_IN
 
-    # Bottom-anchor: notice body ends just above the footer rule.
-    notice_body_bottom = 0.045
-    notice_body_top = notice_body_bottom + n_lines * notice_line_h
-    notice_head_y = notice_body_top + 0.018  # heading + rule + gap
-
-    # --- About Unravel — labelled block above the notice ---
-    about_head_y = notice_head_y + 0.058
+def _section_rule(fig: plt.Figure, y_top: float, label: str) -> None:
+    """Section label + hairline rule — shared by ABOUT and NOTICE so both
+    headings share one styling."""
     fig.text(
         MARGIN_X,
-        about_head_y,
-        "ABOUT UNRAVEL",
-        fontsize=8,
-        color=theme.INK,
-        weight="semibold",
-        va="top",
-    )
-    fig.text(
-        MARGIN_X + 0.135,
-        about_head_y,
-        textwrap.fill(_ABOUT, width=128),
-        fontsize=7.5,
-        color=theme.SUB_INK,
-        va="top",
-        linespacing=1.45,
-    )
-
-    # --- Notice & Disclaimer ---
-    fig.text(
-        MARGIN_X,
-        notice_head_y,
-        "NOTICE & DISCLAIMER",
+        y_top,
+        label,
         fontsize=8,
         color=theme.INK,
         weight="semibold",
@@ -211,21 +193,134 @@ def _draw_about_and_notice(fig: plt.Figure) -> None:
     fig.add_artist(
         plt.Line2D(
             [MARGIN_X, RIGHT_X],
-            [notice_head_y - 0.012, notice_head_y - 0.012],
+            [y_top - 0.012, y_top - 0.012],
             color=theme.HAIR,
             linewidth=0.6,
         )
     )
+
+
+def _draw_link_button(
+    fig: plt.Figure,
+    x: float,
+    y: float,
+    w: float,
+    label: str,
+    url: str,
+    *,
+    primary: bool,
+) -> None:
+    """A website-style pill button (clickable in the PDF). Primary = filled
+    ink; secondary = outlined."""
+    face = theme.INK if primary else "#FFFFFF"
+    edge = theme.INK if primary else "#D4D4D4"
+    fg = "#FFFFFF" if primary else theme.INK
+    box = FancyBboxPatch(
+        (x, y),
+        w,
+        _BTN_H,
+        boxstyle=f"round,pad=0,rounding_size={_BTN_H * 0.5:.4f}",
+        transform=fig.transFigure,
+        facecolor=face,
+        edgecolor=edge,
+        linewidth=0.8,
+        clip_on=False,
+        zorder=5,
+    )
+    box.set_url(url)
+    fig.add_artist(box)
+    mid = y + _BTN_H / 2
+    t = fig.text(
+        x + 0.013,
+        mid,
+        label,
+        fontsize=7.5,
+        weight="semibold",
+        color=fg,
+        va="center",
+        ha="left",
+        zorder=6,
+    )
+    t.set_url(url)
+    a = fig.text(
+        x + w - 0.011,
+        mid,
+        "→",
+        fontsize=9,
+        weight="bold",
+        color=fg,
+        va="center",
+        ha="right",
+        zorder=6,
+    )
+    a.set_url(url)
+
+
+def _draw_about_and_notice(fig: plt.Figure, factor: Factor) -> None:
+    """ABOUT UNRAVEL section (heading + rule + body + further-materials
+    buttons) stacked above a bottom-aligned NOTICE & DISCLAIMER section."""
+    # --- Notice & Disclaimer — bottom-anchored just above the footer rule ---
+    n_lines = textwrap.fill(_NOTICE, width=164).count("\n") + 1
+    notice_line_h = (5.8 * 1.42 / 72.0) / theme.PAGE_H_IN
+    notice_body_top = 0.045 + n_lines * notice_line_h
+    notice_head_y = notice_body_top + 0.018
+
+    _section_rule(fig, notice_head_y, "NOTICE & DISCLAIMER")
     _render_justified_block(
         fig,
         x_frac=MARGIN_X,
         y_top=notice_body_top,
-        column_width_frac=RIGHT_X - MARGIN_X,
+        column_width_frac=COL_WIDTH,
         text=_NOTICE,
         fontsize=5.8,
         color=theme.MUTED,
         linespacing=1.42,
         wrap_chars=164,
+    )
+
+    # --- About Unravel — proper section stacked above the notice ---
+    btn_gap = 0.02
+    btn_w = (COL_WIDTH - btn_gap) / 2
+    buttons_y = notice_head_y + 0.022
+
+    about_line_h = (7.5 * 1.45 / 72.0) / theme.PAGE_H_IN
+    n_about = textwrap.fill(_ABOUT, width=_ABOUT_WRAP).count("\n") + 1
+    about_body_top = buttons_y + _BTN_H + 0.014 + n_about * about_line_h
+    about_head_y = about_body_top + 0.024
+
+    _section_rule(fig, about_head_y, "ABOUT UNRAVEL")
+    fig.text(
+        MARGIN_X,
+        about_body_top,
+        textwrap.fill(_ABOUT, width=_ABOUT_WRAP),
+        fontsize=7.5,
+        color=theme.SUB_INK,
+        va="top",
+        linespacing=1.45,
+    )
+
+    _draw_link_button(
+        fig,
+        MARGIN_X,
+        buttons_y,
+        btn_w,
+        "View this factor on unravel.finance",
+        factor.detail_url,
+        primary=True,
+    )
+    notebook_label = (
+        "Replication notebook — full AlphaLens analysis"
+        if factor.has_factor_notebook
+        else "Replication notebook — backtest in AlphaLens"
+    )
+    _draw_link_button(
+        fig,
+        MARGIN_X + btn_w + btn_gap,
+        buttons_y,
+        btn_w,
+        notebook_label,
+        factor.notebook_url,
+        primary=False,
     )
 
 
@@ -323,15 +418,15 @@ def _plot_mean_return_by_quantile(ax: plt.Axes, clean: pd.DataFrame) -> None:
     group_w = 0.55
     bar_w = group_w / max(n_p, 1)
     x_base = np.arange(n_q)
-    # Single colour scheme — three shades of grey (dark = shortest period).
-    grey_shades = [theme.INK, theme.MUTED, "#BDBDBD"][:n_p]
+    # On-brand accent shades — darkest = shortest (most weighted) period.
+    shades = accent_ramp(n_p)
     for i, period in enumerate(periods):
         offset = (i - (n_p - 1) / 2) * bar_w
         ax.bar(
             x_base + offset,
             mean_q[period].values * 1e4,  # → bps
             width=bar_w,
-            color=grey_shades[i],
+            color=shades[i],
             edgecolor="none",
             label=str(period),
         )
@@ -504,8 +599,8 @@ def render_page_two(
         left=MARGIN_X,
         right=RIGHT_X,
         top=0.745,
-        bottom=0.278,
-        hspace=0.80,
+        bottom=0.375,
+        hspace=0.55,
     )
 
     plotters = [
@@ -529,6 +624,6 @@ def render_page_two(
                 color=theme.MUTED,
             )
 
-    _draw_about_and_notice(fig)
+    _draw_about_and_notice(fig, factor)
     _draw_footer(fig, factor)
     return fig

@@ -17,6 +17,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 FACTORS_YAML = REPO_ROOT / "factsheet-content" / "factors.yaml"
 SITE_BASE_URL = "https://unravel.finance"
 
+# Notebooks live at the repo root as factor_analysis_<id>.ipynb, but only for
+# a subset of factors. When a factor-specific notebook isn't committed we fall
+# back to the generic backtest-replication notebook, which works for any
+# factor — so the factsheet's "replication notebook" link is never dead.
+GITHUB_BLOB_BASE = "https://github.com/unravel-finance/api-guide/blob/main"
+_GENERIC_NOTEBOOK = "replicate_portfolio_backtest.ipynb"
+
 
 @dataclass(frozen=True)
 class Factor:
@@ -35,6 +42,22 @@ class Factor:
     @property
     def detail_url(self) -> str:
         return f"{SITE_BASE_URL}/portfolio/{self.portfolio_id}"
+
+    @property
+    def has_factor_notebook(self) -> bool:
+        """True when a factor-specific replication notebook is committed."""
+        return (REPO_ROOT / f"factor_analysis_{self.id}.ipynb").exists()
+
+    @property
+    def notebook_url(self) -> str:
+        """GitHub link to the replication notebook — the factor-specific one
+        if it exists, otherwise the generic backtest-replication notebook."""
+        name = (
+            f"factor_analysis_{self.id}.ipynb"
+            if self.has_factor_notebook
+            else _GENERIC_NOTEBOOK
+        )
+        return f"{GITHUB_BLOB_BASE}/{name}"
 
 
 def _short_for(entry: dict) -> str:

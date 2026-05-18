@@ -30,6 +30,32 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 RETURNS_DIR = REPO_ROOT / "data" / "returns"
 FACTORS_DIR = REPO_ROOT / "data" / "factors"
 
+# The most recent factor values are a live, paid signal — never publish them.
+# We embargo the trailing 30 calendar days from the open raw-factor export.
+EMBARGO_DAYS = 30
+
+
+def _embargo_recent(factor_data: pd.DataFrame) -> pd.DataFrame:
+    """Drop the trailing EMBARGO_DAYS of rows so the raw export never leaks
+    the most recent (still-live) factor signal."""
+    idx = pd.to_datetime(factor_data.index)
+    tz = getattr(idx, "tz", None)
+    cutoff = pd.Timestamp.now(tz=tz).normalize() - pd.Timedelta(days=EMBARGO_DAYS)
+    mask = idx <= cutoff
+    kept = factor_data.loc[mask]
+    dropped = int((~mask).sum())
+    if dropped:
+        print(
+            f"  · embargo: dropped last {dropped} row(s) newer than "
+            f"{cutoff.date()} (≤ {EMBARGO_DAYS}d)"
+        )
+    if not kept.empty:
+        max_kept = pd.to_datetime(kept.index).max()
+        assert max_kept <= cutoff, (
+            f"embargo check failed: latest exported {max_kept} > {cutoff}"
+        )
+    return kept
+
 
 def _get_api_key() -> str:
     key = os.environ.get("UNRAVEL_API_KEY")
@@ -68,6 +94,7 @@ def export_factor_data(factor: Factor, api_key: str) -> Path:
         api_key=api_key,
     )
     factor_data.index.name = "date"
+    factor_data = _embargo_recent(factor_data)
 
     FACTORS_DIR.mkdir(parents=True, exist_ok=True)
     out = FACTORS_DIR / f"{factor.id}.csv"
