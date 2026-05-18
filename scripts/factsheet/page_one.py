@@ -21,10 +21,11 @@ from datetime import date as _date
 from pathlib import Path
 
 import alphalens
+import matplotlib.dates as _mdates
 import matplotlib.image as mpimg
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
-import numpy as np
+import matplotlib.ticker as _mtick
 import pandas as pd
 
 from scripts.factors_catalog import Factor
@@ -150,14 +151,14 @@ def _draw_top_right_quantile_bars(fig: plt.Figure, clean: pd.DataFrame) -> None:
     values = mean_q[period].values * 1e4  # → bps
     quantiles = list(mean_q.index)
 
-    spark_left = MARGIN_X + 0.66 * COL_WIDTH
-    spark_w = COL_WIDTH - 0.66 * COL_WIDTH
-    spark_bottom = 0.840
-    spark_h = 0.060
+    spark_left = MARGIN_X + 0.55 * COL_WIDTH
+    spark_w = COL_WIDTH - 0.55 * COL_WIDTH
+    spark_bottom = 0.815
+    spark_h = 0.085
 
     fig.text(
         spark_left,
-        spark_bottom + spark_h + 0.012,
+        spark_bottom + spark_h + 0.008,
         "MEAN ALPHA BY QUANTILE  ·  1D (BPS)",
         fontsize=6.5,
         color=theme.MUTED,
@@ -557,72 +558,48 @@ def _draw_cumulative_chart(
     left, bottom, width, height = rect
 
     ax = fig.add_axes((left, bottom, width, height))
-    x = np.arange(len(eq))
-    y_arr = eq.values
-    ax.axhline(1.0, color=theme.HAIR, linewidth=0.6, linestyle=(0, (1.5, 1.5)))
-    ax.fill_between(
-        x, 1.0, y_arr, where=(y_arr >= 1.0),
-        color=theme.ACCENT, alpha=0.10, linewidth=0,
+    # Clean single line, no fills — elegant, index-chart style.
+    ax.plot(
+        eq.index,
+        eq.values,
+        color=theme.ACCENT,
+        linewidth=1.3,
+        solid_capstyle="round",
+        solid_joinstyle="round",
     )
-    ax.fill_between(
-        x, 1.0, y_arr, where=(y_arr < 1.0),
-        color=theme.NEG, alpha=0.08, linewidth=0,
-    )
-    ax.plot(x, y_arr, color=theme.INK, linewidth=1.1)
-    ax.scatter([x[-1]], [y_arr[-1]], s=18, color=theme.ACCENT, zorder=3, linewidth=0)
+    ax.axhline(1.0, color=theme.HAIR, linewidth=0.6)
+    ax.set_axisbelow(True)
+    ax.grid(axis="y", color=theme.HAIR, linewidth=0.5, alpha=0.7)
 
-    years = sorted({d.year for d in eq.index})
-    tick_positions: list[int] = []
-    tick_labels: list[str] = []
-    for y0 in years:
-        mask = eq.index.year == y0
-        if mask.any():
-            tick_positions.append(int(np.argmax(mask)))
-            tick_labels.append(f"’{y0 % 100:02d}")
-    ax.set_xticks(tick_positions)
-    ax.set_xticklabels(tick_labels, fontsize=7, color=theme.MUTED)
-    ax.tick_params(axis="x", which="both", length=2, pad=2, colors=theme.MUTED)
-    ax.set_yticks([])
+    ax.yaxis.set_major_locator(_mtick.MaxNLocator(4, prune="lower"))
+    ax.yaxis.set_major_formatter(
+        _mtick.FuncFormatter(lambda v, _pos: f"{v:.1f}×")
+    )
+    ax.tick_params(
+        axis="y", which="both", length=0, labelsize=6.5,
+        colors=theme.MUTED, pad=2,
+    )
+    ax.xaxis.set_major_locator(_mdates.YearLocator())
+    ax.xaxis.set_major_formatter(_mdates.DateFormatter("%Y"))
+    ax.tick_params(
+        axis="x", which="both", length=0, labelsize=6.5,
+        colors=theme.MUTED, pad=3,
+    )
     for spine_name in ("top", "left", "right"):
         ax.spines[spine_name].set_visible(False)
     ax.spines["bottom"].set_color(theme.HAIR)
     ax.spines["bottom"].set_linewidth(0.6)
-    ax.set_xlim(0, len(eq) - 1)
-    ax.set_ylim(min(0.92, float(y_arr.min()) * 0.98), float(y_arr.max()) * 1.10)
+    ax.set_xlim(eq.index[0], eq.index[-1])
+    ax.set_ylim(bottom=min(0.9, float(eq.min()) * 0.95))
+    ax.margins(x=0)
 
 
 # ---------- disclaimer + about + footer ---------------------------------------
 
 
 def _draw_disclaimer_and_footer(fig: plt.Figure, factor: Factor) -> None:
-    # --- About Unravel — a visible, labelled block (not fine print) ---
-    _hline(fig, 0.092, lw=0.6)
-    fig.text(
-        MARGIN_X,
-        0.082,
-        "ABOUT UNRAVEL",
-        fontsize=7.5,
-        color=theme.INK,
-        weight="semibold",
-        va="top",
-    )
-    about = (
-        "Unravel publishes a catalog of cross-sectional, market-neutral "
-        "crypto factors — each with point-in-time historical data and live "
-        "signals. Explore the full catalog, methodology and API at "
-        "unravel.finance."
-    )
-    fig.text(
-        MARGIN_X + 0.155,
-        0.082,
-        _wrap(about, width=118),
-        fontsize=8,
-        color=theme.SUB_INK,
-        va="top",
-        linespacing=1.45,
-    )
-
-    # --- Legal fine print ---
+    # Short illustrative-portfolio note (the full Notice & Disclaimer and the
+    # About Unravel block live on page 2).
     note = (
         "Note — Performance is for an illustrative single-factor portfolio "
         f"(positions sized proportionally to the factor signal across the "
@@ -632,7 +609,7 @@ def _draw_disclaimer_and_footer(fig: plt.Figure, factor: Factor) -> None:
     )
     fig.text(
         MARGIN_X,
-        0.042,
+        0.052,
         _wrap(note, width=185),
         fontsize=6.3,
         style="italic",
@@ -640,10 +617,10 @@ def _draw_disclaimer_and_footer(fig: plt.Figure, factor: Factor) -> None:
         va="top",
         linespacing=1.35,
     )
-    _hline(fig, 0.024, lw=0.5)
+    _hline(fig, 0.030, lw=0.5)
     fig.text(
         MARGIN_X,
-        0.012,
+        0.018,
         factor.detail_url,
         fontsize=7.5,
         color=theme.SUB_INK,
@@ -652,7 +629,7 @@ def _draw_disclaimer_and_footer(fig: plt.Figure, factor: Factor) -> None:
     )
     fig.text(
         RIGHT_X,
-        0.012,
+        0.018,
         f"Page 1 of 2    ·    {_date.today():%b %Y}",
         fontsize=7.5,
         color=theme.MUTED,
@@ -687,7 +664,7 @@ def render_page_one(
 
     _draw_section_eyebrow(
         fig,
-        y=0.495,
+        y=0.520,
         label=f"Example Top {factor.default_universe} cross-sectional portfolio",
         right_label=(
             f"Inception {stats.start:%b %Y}    ·    "
@@ -702,13 +679,13 @@ def render_page_one(
     )
 
     # Performance + risk tabular bands (replace the heatmap & KPI strip)
-    _draw_performance_band(fig, returns, stats, y_top=0.455)
-    _draw_risk_band(fig, returns, stats, y_top=0.360)
+    _draw_performance_band(fig, returns, stats, y_top=0.453)
+    _draw_risk_band(fig, returns, stats, y_top=0.363)
 
     # Cumulative return — full width below the tables
     fig.text(
         MARGIN_X,
-        0.288,
+        0.295,
         "CUMULATIVE RETURN",
         fontsize=7,
         color=theme.MUTED,
@@ -716,7 +693,7 @@ def render_page_one(
         va="top",
     )
     _draw_cumulative_chart(
-        fig, returns, rect=(MARGIN_X, 0.150, COL_WIDTH, 0.128)
+        fig, returns, rect=(MARGIN_X, 0.118, COL_WIDTH, 0.167)
     )
 
     _draw_disclaimer_and_footer(fig, factor)

@@ -157,12 +157,50 @@ _NOTICE = (
 )
 
 
-def _draw_notice(fig: plt.Figure) -> None:
-    """Notice & Disclaimer block — Unravel-tailored, institutional style."""
-    y = 0.270
+_ABOUT = (
+    "Unravel publishes a catalog of cross-sectional, market-neutral crypto "
+    "factors — each with point-in-time historical data and live signals. "
+    "Explore the full catalog, methodology and API at unravel.finance."
+)
+
+
+def _draw_about_and_notice(fig: plt.Figure) -> None:
+    """About Unravel block sitting directly above a bottom-aligned Notice &
+    Disclaimer (anchored just above the footer rule at y=0.030)."""
+    notice_wrapped = textwrap.fill(_NOTICE, width=164)
+    n_lines = notice_wrapped.count("\n") + 1
+    notice_line_h = (5.8 * 1.42 / 72.0) / theme.PAGE_H_IN
+
+    # Bottom-anchor: notice body ends just above the footer rule.
+    notice_body_bottom = 0.045
+    notice_body_top = notice_body_bottom + n_lines * notice_line_h
+    notice_head_y = notice_body_top + 0.018  # heading + rule + gap
+
+    # --- About Unravel — labelled block above the notice ---
+    about_head_y = notice_head_y + 0.058
     fig.text(
         MARGIN_X,
-        y,
+        about_head_y,
+        "ABOUT UNRAVEL",
+        fontsize=8,
+        color=theme.INK,
+        weight="semibold",
+        va="top",
+    )
+    fig.text(
+        MARGIN_X + 0.135,
+        about_head_y,
+        textwrap.fill(_ABOUT, width=128),
+        fontsize=7.5,
+        color=theme.SUB_INK,
+        va="top",
+        linespacing=1.45,
+    )
+
+    # --- Notice & Disclaimer ---
+    fig.text(
+        MARGIN_X,
+        notice_head_y,
         "NOTICE & DISCLAIMER",
         fontsize=8,
         color=theme.INK,
@@ -171,14 +209,16 @@ def _draw_notice(fig: plt.Figure) -> None:
     )
     fig.add_artist(
         plt.Line2D(
-            [MARGIN_X, RIGHT_X], [y - 0.012, y - 0.012],
-            color=theme.HAIR, linewidth=0.6,
+            [MARGIN_X, RIGHT_X],
+            [notice_head_y - 0.012, notice_head_y - 0.012],
+            color=theme.HAIR,
+            linewidth=0.6,
         )
     )
     fig.text(
         MARGIN_X,
-        y - 0.026,
-        textwrap.fill(_NOTICE, width=164),
+        notice_body_top,
+        notice_wrapped,
         fontsize=5.8,
         color=theme.MUTED,
         va="top",
@@ -461,7 +501,7 @@ def render_page_two(
         left=MARGIN_X,
         right=RIGHT_X,
         top=0.745,
-        bottom=0.300,
+        bottom=0.278,
         hspace=0.80,
     )
 
@@ -486,6 +526,6 @@ def render_page_two(
                 color=theme.MUTED,
             )
 
-    _draw_notice(fig)
+    _draw_about_and_notice(fig)
     _draw_footer(fig, factor)
     return fig
