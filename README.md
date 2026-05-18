@@ -25,16 +25,29 @@ This repository provides transparent, easy-to-understand code examples for:
 
 ### 🔍 Factor Analysis
 
-- Basic factor analysis using AlphaLens
-- Portfolio factor historical data
-- **`factor_analysis_altair.py`**: Factor analysis for the Altair portfolio using AlphaLens
-- **`factor_analysis_carry_enhanced.py`**: Factor analysis for the Carry Enhanced portfolio
-- **`factor_analysis_retail_flow.py`**: Factor analysis for the Retail Flow portfolio
-- **`factor_returns_correlation.py`**: Cross-sectional returns correlation analysis between multiple portfolios
+- AlphaLens factor analysis run on the **dynamic, point-in-time universe**
+  (via `get_historical_universe`) rather than every ticker ever tradeable
+- **`notebooks/factor_analysis_<id>.{py,ipynb}`**: one notebook per
+  single-factor portfolio in the catalog
+- **`notebooks/factor_returns_correlation.{py,ipynb}`**: cross-sectional
+  returns correlation across every catalog portfolio
+
+The `notebooks/` tree is generated from
+[`factsheet-content/factors.yaml`](factsheet-content/factors.yaml) by
+`scripts/generate_factor_notebooks.py`. The **Generate Notebooks** GitHub
+Actions workflow regenerates and executes them (so the committed `.ipynb`
+files carry real outputs) on a weekly schedule, on manual dispatch, and
+whenever the factor catalog changes. To regenerate locally:
+
+```bash
+python -m scripts.generate_factor_notebooks            # write + convert
+python -m scripts.generate_factor_notebooks --execute  # also run them
+```
 
 ### 🛠️ Utilities
 
-- **`convert_to_notebooks.py`**: Script to convert all Python files to Jupyter notebooks
+- **`convert_to_notebooks.py`**: Script to convert root Python files to Jupyter notebooks
+- **`scripts/generate_factor_notebooks.py`**: Generates the per-factor notebooks from the catalog
 - **`analysis/`**: Utility modules for backtesting, plotting, price data, and factor analysis
 
 ## Installation
@@ -103,20 +116,20 @@ jupyter notebook get_live_weights.ipynb
 
 ### 4. Factor Analysis
 
-Analyze portfolio factors:
+Analyze portfolio factors (one notebook per factor in the catalog):
 
 ```bash
-jupyter notebook factor_analysis_altair.ipynb
-jupyter notebook factor_analysis_carry_enhanced.ipynb
-jupyter notebook factor_analysis_retail_flow.ipynb
+jupyter notebook notebooks/factor_analysis_altair.ipynb
+jupyter notebook notebooks/factor_analysis_momentum.ipynb
+# ... see notebooks/ for the full set
 ```
 
 ### 5. Factor Returns Correlation
 
-Analyze correlations between portfolio returns:
+Analyze correlations across every catalog portfolio's returns:
 
 ```bash
-jupyter notebook factor_returns_correlation.ipynb
+jupyter notebook notebooks/factor_returns_correlation.ipynb
 ```
 
 ## Available Portfolios

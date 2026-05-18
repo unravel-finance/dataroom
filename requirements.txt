@@ -3,6 +3,10 @@ matplotlib
 pandas
 requests
 alphalens-reloaded
+seaborn
 joblib
 python-dotenv
+pyyaml
 jupytext
+nbconvert
+ipykernel
