@@ -11,11 +11,9 @@ from __future__ import annotations
 
 import textwrap
 from datetime import date as _date
-from pathlib import Path
 
 import alphalens
 import matplotlib.dates as mdates
-import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import numpy as np
@@ -29,14 +27,13 @@ from scripts.factsheet.al_utils import (
     clean_factor_data,
     quantile_palette,
 )
+from scripts.factsheet.branding import draw_brand
 from scripts.factsheet.buttons import BTN_H, draw_link_button
 from scripts.factsheet.justify import _render_justified_block
 
 MARGIN_X = 0.07
 RIGHT_X = 1.0 - MARGIN_X
 COL_WIDTH = RIGHT_X - MARGIN_X
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-LOGO_PNG = REPO_ROOT / "branding" / "unravel-logo.png"
 
 
 def _set_year_ticks(ax: plt.Axes) -> None:
@@ -46,26 +43,7 @@ def _set_year_ticks(ax: plt.Axes) -> None:
 
 def _draw_header(fig: plt.Figure, factor: Factor, page: int) -> None:
     """Header — mirrors page 1: logo + Unravel wordmark left, page label right."""
-    wordmark_x = MARGIN_X
-    if LOGO_PNG.exists():
-        img = mpimg.imread(LOGO_PNG)
-        logo_h = 0.022
-        aspect = img.shape[1] / img.shape[0]
-        logo_w = logo_h * (theme.PAGE_H_IN / theme.PAGE_W_IN) * aspect
-        ax_logo = fig.add_axes((MARGIN_X, 0.960 - logo_h / 2, logo_w, logo_h))
-        ax_logo.imshow(img, interpolation="bilinear")
-        ax_logo.axis("off")
-        wordmark_x = MARGIN_X + logo_w + 0.010
-    fig.text(
-        wordmark_x,
-        0.960,
-        "Unravel",
-        fontsize=13,
-        fontweight="bold",
-        color=theme.INK,
-        va="center",
-        family=theme.display_font(),
-    )
+    draw_brand(fig, MARGIN_X)
     fig.text(
         RIGHT_X,
         0.960,

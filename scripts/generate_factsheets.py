@@ -17,36 +17,42 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import sys
 import traceback
 from pathlib import Path
 
-import matplotlib.pyplot as plt
-import pandas as pd
-from matplotlib.backends.backend_pdf import PdfPages
-from unravel_client import (
+# Headless, thread-/process-safe backend. MUST be set before any pyplot
+# import (including the transitive ones via scripts.factsheet.*), otherwise
+# the joblib workers can pick up an interactive backend.
+import matplotlib
+
+matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt  # noqa: E402
+import pandas as pd  # noqa: E402
+from joblib import Parallel, delayed  # noqa: E402
+from matplotlib.backends.backend_pdf import PdfPages  # noqa: E402
+from unravel_client import (  # noqa: E402
     get_historical_universe,
     get_portfolio_factors_historical,
     get_portfolio_returns,
     get_prices,
 )
 
-from scripts.factors_catalog import Factor, load_factors
-from scripts.factsheet import metrics
-from scripts.factsheet.al_utils import clean_factor_data
-from scripts.factsheet.page_one import render_page_one
-from scripts.factsheet.page_two import render_page_two
+from scripts._common import (  # noqa: E402
+    UnknownFactors,
+    get_api_key,
+    job_count,
+    select_factors,
+)
+from scripts.factors_catalog import Factor  # noqa: E402
+from scripts.factsheet import metrics  # noqa: E402
+from scripts.factsheet.al_utils import clean_factor_data  # noqa: E402
+from scripts.factsheet.page_one import render_page_one  # noqa: E402
+from scripts.factsheet.page_two import render_page_two  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FACTSHEETS_DIR = REPO_ROOT / "data" / "factsheets"
-
-
-def _get_api_key() -> str:
-    key = os.environ.get("UNRAVEL_API_KEY")
-    if not key:
-        raise RuntimeError("UNRAVEL_API_KEY environment variable is not set")
-    return key
 
 
 def _fetch_factor_inputs(
@@ -136,28 +142,48 @@ def render_factsheet(factor: Factor, api_key: str) -> Path:
     return out
 
 
-def main(argv: list[str]) -> int:
-    api_key = _get_api_key()
-    factors = load_factors()
-    if argv:
-        wanted = set(argv)
-        factors = [f for f in factors if f.id in wanted]
-        missing = wanted - {f.id for f in factors}
-        if missing:
-            print(f"Unknown factor(s): {sorted(missing)}", file=sys.stderr)
-            return 1
+def _render_safe(factor: Factor, api_key: str) -> tuple[str, str | None]:
+    """Process-pool worker: render one factsheet, never raise.
 
-    failures: list[str] = []
-    for factor in factors:
-        try:
-            render_factsheet(factor, api_key)
-        except Exception as exc:  # noqa: BLE001 — keep going to other factors
-            failures.append(factor.id)
-            print(f"  ✗ {factor.id} failed: {exc}", file=sys.stderr)
-            traceback.print_exc(limit=3)
+    Returns ``(factor_id, error_or_None)`` so the parent can aggregate
+    failures the way the old sequential loop did.
+    """
+    try:
+        render_factsheet(factor, api_key)
+        return factor.id, None
+    except Exception as exc:  # noqa: BLE001 — reported by the parent
+        return factor.id, "".join(
+            traceback.format_exception_only(type(exc), exc)
+        ).strip()
+
+
+def main(argv: list[str]) -> int:
+    api_key = get_api_key()
+    try:
+        factors = select_factors(argv)
+    except UnknownFactors as exc:
+        print(f"Unknown factor(s): {exc.args[0]}", file=sys.stderr)
+        return 1
+
+    # Process-based (loky) parallelism, NOT threads: matplotlib's pyplot
+    # state machine (theme.new_page() → plt.figure()) is not thread-safe.
+    # Each worker renders one factsheet in its own interpreter.
+    workers = min(job_count(), len(factors)) or 1
+    if workers <= 1:
+        results = [_render_safe(f, api_key) for f in factors]
+    else:
+        results = Parallel(n_jobs=workers, backend="loky")(
+            delayed(_render_safe)(f, api_key) for f in factors
+        )
+
+    failures = []
+    for factor_id, err in results:
+        if err:
+            failures.append(factor_id)
+            print(f"  ✗ {factor_id} failed: {err}", file=sys.stderr)
 
     if failures:
-        print(f"\nFailed: {failures}", file=sys.stderr)
+        print(f"\nFailed: {sorted(failures)}", file=sys.stderr)
         return 1
     print("\nDone.")
     return 0

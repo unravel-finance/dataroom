@@ -18,11 +18,9 @@ from __future__ import annotations
 
 import textwrap
 from datetime import date as _date
-from pathlib import Path
 
 import alphalens
 import matplotlib.dates as _mdates
-import matplotlib.image as mpimg
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import matplotlib.ticker as _mtick
@@ -31,11 +29,9 @@ import pandas as pd
 from scripts.factors_catalog import Factor
 from scripts.factsheet import metrics, theme
 from scripts.factsheet.al_utils import accent_by_magnitude
+from scripts.factsheet.branding import draw_brand
 from scripts.factsheet.buttons import draw_link_button
 from scripts.factsheet.justify import _render_justified_block
-
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-LOGO_PNG = REPO_ROOT / "branding" / "unravel-logo.png"
 
 MARGIN_X = 0.07
 RIGHT_X = 1.0 - MARGIN_X
@@ -65,40 +61,8 @@ def _hline(fig: plt.Figure, y: float, *, lw: float = 0.6, color: str | None = No
 # ---------- header ------------------------------------------------------------
 
 
-def _draw_logo(fig: plt.Figure) -> None:
-    if not LOGO_PNG.exists():
-        fig.text(
-            MARGIN_X,
-            0.960,
-            "Unravel",
-            fontsize=14,
-            fontweight="bold",
-            color=theme.INK,
-            va="center",
-            family=theme.display_font(),
-        )
-        return
-    img = mpimg.imread(LOGO_PNG)
-    logo_h = 0.022
-    aspect = img.shape[1] / img.shape[0]
-    logo_w = logo_h * (theme.PAGE_H_IN / theme.PAGE_W_IN) * aspect
-    ax_logo = fig.add_axes((MARGIN_X, 0.960 - logo_h / 2, logo_w, logo_h))
-    ax_logo.imshow(img, interpolation="bilinear")
-    ax_logo.axis("off")
-    fig.text(
-        MARGIN_X + logo_w + 0.010,
-        0.960,
-        "Unravel",
-        fontsize=13,
-        fontweight="bold",
-        color=theme.INK,
-        va="center",
-        family=theme.display_font(),
-    )
-
-
 def _draw_header(fig: plt.Figure, factor: Factor, page: int) -> None:
-    _draw_logo(fig)
+    draw_brand(fig, MARGIN_X)
     fig.text(
         RIGHT_X,
         0.960,

@@ -12,9 +12,9 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import sys
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
@@ -24,7 +24,8 @@ from unravel_client import (
     get_tickers,
 )
 
-from scripts.factors_catalog import Factor, load_factors
+from scripts._common import UnknownFactors, get_api_key, job_count, select_factors
+from scripts.factors_catalog import Factor
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RETURNS_DIR = REPO_ROOT / "data" / "returns"
@@ -55,13 +56,6 @@ def _embargo_recent(factor_data: pd.DataFrame) -> pd.DataFrame:
             f"embargo check failed: latest exported {max_kept} > {cutoff}"
         )
     return kept
-
-
-def _get_api_key() -> str:
-    key = os.environ.get("UNRAVEL_API_KEY")
-    if not key:
-        raise RuntimeError("UNRAVEL_API_KEY environment variable is not set")
-    return key
 
 
 def export_returns(factor: Factor, api_key: str) -> Path:
@@ -123,27 +117,38 @@ def export_factor(factor: Factor, api_key: str) -> None:
 
 
 def main(argv: list[str]) -> int:
-    api_key = _get_api_key()
-    factors = load_factors()
-    if argv:
-        wanted = set(argv)
-        factors = [f for f in factors if f.id in wanted]
-        missing = wanted - {f.id for f in factors}
-        if missing:
-            print(f"Unknown factor(s): {sorted(missing)}", file=sys.stderr)
-            return 1
+    api_key = get_api_key()
+    try:
+        factors = select_factors(argv)
+    except UnknownFactors as exc:
+        print(f"Unknown factor(s): {exc.args[0]}", file=sys.stderr)
+        return 1
 
+    # The per-factor work is dominated by Unravel API round-trips, so a
+    # thread pool gives a near-linear wall-clock speedup. (No matplotlib
+    # here, so threads are safe — unlike generate_factsheets.)
+    workers = min(job_count(), len(factors)) or 1
     failures: list[str] = []
-    for factor in factors:
+
+    def _run(factor: Factor) -> None:
         try:
             export_factor(factor, api_key)
-        except Exception as exc:  # noqa: BLE001 — keep the loop going
+        except Exception as exc:  # noqa: BLE001 — keep going to other factors
             failures.append(factor.id)
             print(f"  ✗ {factor.id} failed: {exc}", file=sys.stderr)
             traceback.print_exc(limit=2)
 
+    if workers <= 1:
+        for factor in factors:
+            _run(factor)
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(_run, f) for f in factors]
+            for fut in as_completed(futures):
+                fut.result()  # _run swallows; this only re-raises bugs in _run
+
     if failures:
-        print(f"\nFailed: {failures}", file=sys.stderr)
+        print(f"\nFailed: {sorted(failures)}", file=sys.stderr)
         return 1
     print("\nDone.")
     return 0
