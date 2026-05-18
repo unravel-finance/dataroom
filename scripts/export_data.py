@@ -101,10 +101,13 @@ def export_factor_data(factor: Factor, api_key: str) -> Path:
     )
     factor_data.index.name = "date"
     factor_data = _embargo_recent(factor_data)
+    # float32 precision is plenty for factor values; combined with the
+    # compact %g format this roughly halves the CSV vs fixed 8-decimal.
+    factor_data = factor_data.astype("float32")
 
     FACTORS_DIR.mkdir(parents=True, exist_ok=True)
     out = FACTORS_DIR / f"{factor.id}.csv"
-    factor_data.to_csv(out, float_format="%.8f")
+    factor_data.to_csv(out, float_format="%.7g")
     print(
         f"  ✓ factor data → {out.relative_to(REPO_ROOT)} "
         f"({len(factor_data)} rows × {factor_data.shape[1]} tickers)"
