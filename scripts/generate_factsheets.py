@@ -4,7 +4,7 @@ Workflow:
     1. Pull the portfolio returns (for page 1's performance chart).
     2. Pull the raw factor data + underlying prices for the AlphaLens analysis
        on page 2.
-    3. Combine both pages into one PDF per factor under data/factsheets/.
+    3. Combine both pages into one PDF per factor under factsheets/.
 
 CSVs are exported as a side-effect (export_data does the same thing but we
 re-fetch here so generating PDFs doesn't depend on the CSV step being run
@@ -52,7 +52,7 @@ from scripts.factsheet.page_one import render_page_one  # noqa: E402
 from scripts.factsheet.page_two import render_page_two  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-FACTSHEETS_DIR = REPO_ROOT / "data" / "factsheets"
+FACTSHEETS_DIR = REPO_ROOT / "factsheets"
 
 
 def _fetch_factor_inputs(

@@ -9,7 +9,7 @@ This repository provides transparent, easy-to-understand code examples for:
 - **Getting Started**: Quick setup and basic usage of the Unravel API
 - **Backtest Validation**: Transparent backtesting code to validate portfolio performance
 - **Live Weights**: Simple access to current portfolio allocations
-- **Sales data-room**: Auto-generated CSVs of historical returns / raw factor data and two-page PDF factsheets for every single-factor portfolio (see `scripts/`, `data/`, `factsheet-content/`)
+- **Sales data-room**: Auto-generated CSVs of historical returns / raw factor data and two-page PDF factsheets for every single-factor portfolio (see `scripts/`, `data/`, `factsheets/`)
 
 ## What's Included
 
@@ -122,13 +122,13 @@ jupyter notebook factor_returns_correlation.ipynb
 
 ## Sales Data-Room Pipeline
 
-The `.github/workflows/generate-factsheets.yml` workflow refreshes the public artefacts used by Unravel's outbound sales pipeline. It runs **manually only** (no schedule) and requires the `UNRAVEL_API_KEY` repo secret.
+The `.github/workflows/generate-factsheets.yml` workflow refreshes the public artefacts used by Unravel's outbound sales pipeline. It requires the `UNRAVEL_API_KEY` repo secret and is delivered by trigger: a **weekly schedule** (and manual dispatch) opens a PR into `main` for a human to review and merge; pushes to the setup branch commit straight back for fast design iteration.
 
-For every single-factor portfolio defined in `factsheet-content/factors.yaml`, the workflow produces:
+For every single-factor portfolio defined in the catalog (`scripts/factors_catalog.py`), the workflow produces:
 
-- `data/returns/<factor>.csv` — daily returns of the unconstrained Top-40 portfolio
-- `data/factors/<factor>.csv` — raw cross-sectional factor data (per ticker, per day)
-- `data/factsheets/<factor>.pdf` — two-page tear sheet (narrative + performance on page 1, AlphaLens factor analysis on page 2)
+- `data/portfolio-40-returns/<factor>.csv` — daily returns of the unconstrained Top-40 portfolio
+- `data/raw-factors/<factor>.csv` — raw cross-sectional factor data (per ticker, per day)
+- `factsheets/<factor>.pdf` — two-page tear sheet (narrative + performance on page 1, AlphaLens factor analysis on page 2)
 
 The artefacts are referenced directly from the Unravel Alpha web app (`apps/alpha`) via the raw GitHub URLs — no separate hosting required.
 

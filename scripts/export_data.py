@@ -1,8 +1,8 @@
 """Export per-factor CSVs (portfolio returns + raw factor data) from the Unravel API.
 
 Outputs:
-    data/returns/<factor_id>.csv   — daily returns of the unconstrained (.40) portfolio
-    data/factors/<factor_id>.csv   — historical raw factor data (per-ticker)
+    data/portfolio-40-returns/<factor_id>.csv  — daily returns of the unconstrained (.40) portfolio
+    data/raw-factors/<factor_id>.csv           — historical raw factor data (per-ticker)
 
 Usage:
     python -m scripts.export_data                 # all factors
@@ -28,8 +28,8 @@ from scripts._common import UnknownFactors, get_api_key, job_count, select_facto
 from scripts.factors_catalog import Factor
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RETURNS_DIR = REPO_ROOT / "data" / "returns"
-FACTORS_DIR = REPO_ROOT / "data" / "factors"
+RETURNS_DIR = REPO_ROOT / "data" / "portfolio-40-returns"
+FACTORS_DIR = REPO_ROOT / "data" / "raw-factors"
 
 # The most recent factor values are a live, paid signal — never publish them.
 # We embargo the trailing 30 calendar days from the open raw-factor export.

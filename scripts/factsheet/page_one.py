@@ -162,7 +162,7 @@ def _draw_hero(
     # The factor's "effect" one-liner is the strongest hook, so it leads as
     # the subtitle when present; the plainer short_description is the
     # fallback. (This replaces the old optional pull-quote band — the copy
-    # is the same `factor.effect` from factsheet-content/factors.yaml.)
+    # is the same `factor.effect` from the scripts/factors_catalog.py catalog.)
     subtitle = factor.effect or factor.short_description
     # 0.012 gap reproduces the original title→subtitle rhythm for a normal
     # one-line title and tracks it when the title wraps/shrinks.

@@ -4,7 +4,7 @@ The page-1 renderer pairs the mark with a separately-drawn "Unravel" wordmark
 in the display font, so this script outputs the *mark only* — no wordmark
 composited in.
 
-    python branding/build_logo.py
+    python scripts/factsheet/assets/build_logo.py
 """
 
 from __future__ import annotations

@@ -36,11 +36,10 @@ MARGIN_IN = 0.55
 # Real minus sign (U+2212) — same width as digits, used in numeric formatting.
 MINUS = "−"
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 # Optional ship-with-repo fonts. Drop .ttf / .otf cuts of Mona Sans into
-# branding/fonts/ and they'll be picked up here without relying on the
-# build host having them installed system-wide.
-_BUNDLED_FONT_DIR = REPO_ROOT / "branding" / "fonts"
+# scripts/factsheet/assets/fonts/ and they'll be picked up here without
+# relying on the build host having them installed system-wide.
+_BUNDLED_FONT_DIR = Path(__file__).resolve().parent / "assets" / "fonts"
 
 
 def _refresh_font_cache_once() -> None:
@@ -48,8 +47,8 @@ def _refresh_font_cache_once() -> None:
 
     matplotlib only loads .ttf/.otf — the web .woff2 files in apps/web/styles
     won't work directly. If you want pixel-accurate brand fonts in the PDF,
-    drop the .ttf/.otf cuts of Mona Sans into ``branding/fonts/`` and this
-    function will pick them up. Safe to call repeatedly.
+    drop the .ttf/.otf cuts of Mona Sans into ``scripts/factsheet/assets/
+    fonts/`` and this function will pick them up. Safe to call repeatedly.
     """
     if getattr(_refresh_font_cache_once, "_done", False):
         return

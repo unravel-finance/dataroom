@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 
 from scripts.factsheet import theme
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-LOGO_PNG = REPO_ROOT / "branding" / "unravel-logo.png"
+ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+LOGO_PNG = ASSETS_DIR / "unravel-logo.png"
 
 _LOGO_Y = 0.960
 _LOGO_H = 0.022
@@ -25,7 +25,7 @@ def draw_brand(fig: plt.Figure, margin_x: float) -> None:
 
     Falls back to a text-only wordmark if the rasterised mark isn't present
     (matplotlib can't read the SVG source, so the committed PNG is what we
-    embed — see branding/build_logo.py)."""
+    embed — see scripts/factsheet/assets/build_logo.py)."""
     wordmark_x = margin_x
     if LOGO_PNG.exists():
         img = mpimg.imread(LOGO_PNG)
