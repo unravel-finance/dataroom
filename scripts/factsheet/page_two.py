@@ -85,7 +85,7 @@ def _draw_header(fig: plt.Figure, factor: Factor) -> None:
     # document title is the factor name (big on page 1, top-right here) — so
     # it's set smaller than page 1's hero, which also frees vertical height
     # for the charts below.
-    fig.text(
+    title = fig.text(
         MARGIN_X,
         0.920,
         "Factor Analysis",
@@ -95,14 +95,21 @@ def _draw_header(fig: plt.Figure, factor: Factor) -> None:
         va="top",
         family=theme.display_font(),
     )
-    # Secondary CTA centred on the title row — direct download of the raw
-    # factor-data CSV referenced in the body copy below.
+    # Secondary CTA vertically centred on the rendered title glyphs — measure
+    # the real text bbox so it doesn't drift with font metrics. Direct
+    # download of the raw factor-data CSV referenced in the body copy below.
+    renderer = fig.canvas.get_renderer()
+    inv = fig.transFigure.inverted()
+    tbox = title.get_window_extent(renderer)
+    (_, ty0) = inv.transform((tbox.x0, tbox.y0))
+    (_, ty1) = inv.transform((tbox.x0, tbox.y1))
+    title_mid = (ty0 + ty1) / 2.0
     csv_btn_w = 0.235
-    csv_btn_h = 0.026
+    csv_btn_h = 0.022
     draw_link_button(
         fig,
         RIGHT_X - csv_btn_w,
-        0.894,
+        title_mid - csv_btn_h / 2.0,
         csv_btn_w,
         "Download Factor Data (CSV)",
         factor.factor_data_csv_url,
@@ -202,7 +209,8 @@ def _draw_about_and_notice(fig: plt.Figure, factor: Factor) -> None:
     # --- Notice & Disclaimer — bottom-anchored just above the footer rule ---
     n_lines = textwrap.fill(_NOTICE, width=164).count("\n") + 1
     notice_line_h = (5.8 * 1.42 / 72.0) / theme.PAGE_H_IN
-    notice_body_top = 0.045 + n_lines * notice_line_h
+    # Anchored close to the footer so the chart band can extend lower.
+    notice_body_top = 0.038 + n_lines * notice_line_h
     notice_head_y = notice_body_top + 0.018
 
     _section_rule(fig, notice_head_y, "NOTICE & DISCLAIMER")
@@ -445,9 +453,14 @@ def _plot_ic_with_stats(ax: plt.Axes, clean: pd.DataFrame) -> None:
     )
     ax.axhline(0, color=theme.HAIR, linewidth=0.6)
     ax.set_ylabel("IC")
-    # Fixed, symmetric scale so the chart reads consistently across factors
-    # and the daily-IC noise band doesn't dominate the panel.
-    ax.set_ylim(-0.3, 0.3)
+    # Scale to the 21-day MA's own range (plus the zero and mean references)
+    # so the smoothed signal uses the full panel height and its shape is
+    # amplified, rather than being flattened by the noisy daily-IC spikes.
+    ma = rolling.dropna()
+    lo = min(float(ma.min()), 0.0, mean_ic) if not ma.empty else -0.1
+    hi = max(float(ma.max()), 0.0, mean_ic) if not ma.empty else 0.1
+    pad = max((hi - lo) * 0.12, 0.005)
+    ax.set_ylim(lo - pad, hi + pad)
     ax.grid(axis="y", linewidth=0.4, alpha=0.6)
     ax.legend(loc="upper right", fontsize=7)
     _strip_top_right(ax)
@@ -509,6 +522,16 @@ def _plot_cumulative_quantile_returns(ax: plt.Axes, clean: pd.DataFrame) -> None
             color=colors[i],
         )
     ax.set_yscale("log")
+    # Readable multiple labels (…0.5×, 1×, 2×, 5×…) instead of the bare
+    # 10^0 default, so the actual growth/decay of each quantile is legible.
+    ax.yaxis.set_major_locator(
+        mtick.LogLocator(base=10.0, subs=(1.0, 2.0, 5.0))
+    )
+    ax.yaxis.set_minor_locator(
+        mtick.LogLocator(base=10.0, subs=(2, 3, 4, 5, 6, 7, 8, 9))
+    )
+    ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda v, _p: f"{v:g}×"))
+    ax.yaxis.set_minor_formatter(mtick.NullFormatter())
     ax.axhline(1.0, color=theme.HAIR, linewidth=0.5)
     ax.set_title(
         f"Cumulative Alpha by Quantile  ·  demeaned, {period}",
@@ -558,8 +581,9 @@ def render_page_two(
         left=MARGIN_X,
         right=RIGHT_X,
         top=0.803,
-        bottom=0.356,
-        hspace=0.55,
+        bottom=0.345,
+        hspace=0.52,
+        height_ratios=[1.18, 1.18, 0.64],
     )
 
     plotters = [
