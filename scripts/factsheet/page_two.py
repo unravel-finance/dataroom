@@ -81,27 +81,28 @@ def _draw_header(fig: plt.Figure, factor: Factor) -> None:
         )
     )
 
-    # Title block — same vertical anchor as page 1 so the two pages read as
-    # siblings, not as different documents. Shorter wordmark than page 1
-    # because the title text is longer.
+    # Title block. "Factor Analysis" reads as a section subtitle here — the
+    # document title is the factor name (big on page 1, top-right here) — so
+    # it's set smaller than page 1's hero, which also frees vertical height
+    # for the charts below.
     fig.text(
         MARGIN_X,
-        0.908,
+        0.920,
         "Factor Analysis",
-        fontsize=36,
+        fontsize=22,
         fontweight="bold",
         color=theme.INK,
         va="top",
         family=theme.display_font(),
     )
-    # Secondary CTA aligned to the title row — direct download of the raw
+    # Secondary CTA centred on the title row — direct download of the raw
     # factor-data CSV referenced in the body copy below.
     csv_btn_w = 0.235
     csv_btn_h = 0.026
     draw_link_button(
         fig,
         RIGHT_X - csv_btn_w,
-        0.874,
+        0.894,
         csv_btn_w,
         "Download Factor Data (CSV)",
         factor.factor_data_csv_url,
@@ -112,7 +113,7 @@ def _draw_header(fig: plt.Figure, factor: Factor) -> None:
     _render_justified_block(
         fig,
         x_frac=MARGIN_X,
-        y_top=0.855,
+        y_top=0.880,
         column_width_frac=COL_WIDTH,
         text=(
             "Diagnostics on the raw factor values, independent of "
@@ -556,7 +557,7 @@ def render_page_two(
         figure=fig,
         left=MARGIN_X,
         right=RIGHT_X,
-        top=0.778,
+        top=0.803,
         bottom=0.356,
         hspace=0.55,
     )
