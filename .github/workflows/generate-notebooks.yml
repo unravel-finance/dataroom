@@ -72,9 +72,11 @@ jobs:
         run: python -m scripts.generate_factor_notebooks --execute
 
       - name: Show generated notebooks
-        run: ls -lh notebooks || true
+        if: always()
+        run: ls -lhR notebooks || true
 
       - name: Upload notebooks artefact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: notebooks
@@ -84,9 +86,12 @@ jobs:
       # --- delivery -------------------------------------------------------
 
       # Fast iteration: push to the dev branch commits the executed
-      # notebooks straight back so this PR shows the real output.
+      # notebooks straight back so this PR shows the real output. Runs even
+      # on failure (always()) during the temporary dev-branch phase so the
+      # _execution_report.md / _execution_logs are committed back for
+      # diagnosis -- we cannot read Actions logs from the dev workflow.
       - name: Commit executed notebooks back to the branch
-        if: ${{ github.event_name == 'push' && github.ref_name != 'main' }}
+        if: ${{ always() && github.event_name == 'push' && github.ref_name != 'main' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -105,7 +110,7 @@ jobs:
       # Steady state: scheduled / manual / push-to-main runs open a PR into
       # main for a human to review the regenerated notebooks/ diff.
       - name: Open PR with refreshed notebooks
-        if: ${{ github.event_name != 'push' || github.ref_name == 'main' }}
+        if: ${{ success() && (github.event_name != 'push' || github.ref_name == 'main') }}
         uses: peter-evans/create-pull-request@v6
         with:
           base: main

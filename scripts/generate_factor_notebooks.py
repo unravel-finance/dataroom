@@ -219,9 +219,18 @@ def to_notebook(py_file: Path) -> Path:
     return ipynb
 
 
-def execute(ipynb: Path) -> None:
+LOGS_DIR = NOTEBOOKS_DIR / "_execution_logs"
+REPORT = NOTEBOOKS_DIR / "_execution_report.md"
+
+
+def execute(ipynb: Path) -> tuple[bool, str]:
+    """Execute a notebook in place. Returns (ok, captured_output).
+
+    Never raises on a notebook error -- the output is captured so the CI run
+    can commit a diagnosable report back to the branch (we have no other way
+    to read Actions logs from here)."""
     print(f"  executing {ipynb.relative_to(REPO_ROOT)} ...")
-    subprocess.run(
+    proc = subprocess.run(
         [
             "jupyter",
             "nbconvert",
@@ -234,9 +243,17 @@ def execute(ipynb: Path) -> None:
             "--ExecutePreprocessor.timeout=1800",
             str(ipynb),
         ],
-        check=True,
+        capture_output=True,
+        text=True,
         cwd=REPO_ROOT,
     )
+    output = (proc.stdout or "") + (proc.stderr or "")
+    ok = proc.returncode == 0
+    if not ok:
+        LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        (LOGS_DIR / f"{ipynb.stem}.log").write_text(output)
+        print(f"    FAILED ({ipynb.stem}) -- see notebooks/_execution_logs/")
+    return ok, output
 
 
 def main(argv: list[str]) -> None:
@@ -259,8 +276,32 @@ def main(argv: list[str]) -> None:
 
     if do_execute:
         print("Executing notebooks (requires UNRAVEL_API_KEY):")
+        failures: list[tuple[str, str]] = []
         for nb in notebooks:
-            execute(nb)
+            ok, output = execute(nb)
+            if not ok:
+                # Keep the last ~60 lines -- enough for the traceback.
+                tail = "\n".join(output.strip().splitlines()[-60:])
+                failures.append((nb.stem, tail))
+
+        lines = [
+            "# Notebook execution report",
+            "",
+            f"Total: {len(notebooks)} | "
+            f"Passed: {len(notebooks) - len(failures)} | "
+            f"Failed: {len(failures)}",
+            "",
+        ]
+        for name, tail in failures:
+            lines += [f"## {name}", "", "```", tail, "```", ""]
+        REPORT.write_text("\n".join(lines) + "\n")
+        print(f"Wrote {REPORT.relative_to(REPO_ROOT)}")
+
+        if failures:
+            raise SystemExit(
+                f"{len(failures)} notebook(s) failed to execute: "
+                f"{[n for n, _ in failures]}"
+            )
 
     print("Done.")
 
