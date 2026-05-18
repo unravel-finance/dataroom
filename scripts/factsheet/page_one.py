@@ -392,6 +392,18 @@ def _draw_performance_band(
         MARGIN_X, y_top + 0.022, "PERFORMANCE",
         fontsize=7, color=theme.MUTED, weight="semibold", va="top",
     )
+    fig.text(
+        RIGHT_X,
+        y_top + 0.022,
+        (
+            f"Report Period Start Date {stats.start:%b %Y}    ·    "
+            f"End Date {stats.end:%b %Y}"
+        ),
+        fontsize=7,
+        color=theme.MUTED,
+        ha="right",
+        va="top",
+    )
     gr = metrics.gross_return_by_window(returns)
     ann = metrics.annual_returns(returns)
     ann_labels = sorted(
@@ -588,10 +600,6 @@ def render_page_one(
         fig,
         y=0.520,
         label=f"Example Top {factor.default_universe} cross-sectional portfolio",
-        right_label=(
-            f"Inception {stats.start:%b %Y}    ·    "
-            f"Updated {stats.end:%b %Y}"
-        ),
         sub_label=(
             "Long and short the full Top "
             f"{factor.default_universe} universe, with position sizes "
@@ -600,17 +608,18 @@ def render_page_one(
         ),
     )
     # Secondary download — daily returns CSV for this illustrative portfolio.
-    # Sits at the right of the section header, just above its divider rule.
-    ret_btn_w = 0.20
+    # Sits at the right of the section header, just below its divider rule
+    # (the report-period metadata moved next to the Performance title).
+    ret_btn_w = 0.19
     draw_link_button(
         fig,
         RIGHT_X - ret_btn_w,
-        0.539,
+        0.510,
         ret_btn_w,
         "Download returns (CSV)",
         factor.returns_csv_url,
         primary=False,
-        height=0.020,
+        height=0.019,
         fontsize=7,
     )
 

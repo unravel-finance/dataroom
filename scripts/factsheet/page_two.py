@@ -109,25 +109,24 @@ def _draw_header(fig: plt.Figure, factor: Factor) -> None:
         height=csv_btn_h,
         fontsize=7.5,
     )
-    fig.text(
-        MARGIN_X,
-        0.855,
-        textwrap.fill(
-            (
-                "Diagnostics on the raw factor values, independent of "
-                "portfolio construction: the quantile and IC plots show "
-                "whether the signal cross-sectionally separates out- from "
-                "under-performers, and how consistently. Computed "
-                f"point-in-time on the rolling Top {factor.default_universe} "
-                "universe (the live factor spans many more tokens — see the "
-                "raw factor-data CSV in the data room)."
-            ),
-            width=116,
+    _render_justified_block(
+        fig,
+        x_frac=MARGIN_X,
+        y_top=0.855,
+        column_width_frac=COL_WIDTH,
+        text=(
+            "Diagnostics on the raw factor values, independent of "
+            "portfolio construction: the quantile and IC plots show "
+            "whether the signal cross-sectionally separates out- from "
+            "under-performers, and how consistently. Computed "
+            f"point-in-time on the rolling Top {factor.default_universe} "
+            "universe (the live factor spans many more tokens — see the "
+            "raw factor-data CSV in the data room)."
         ),
         fontsize=9.5,
         color=theme.SUB_INK,
-        va="top",
         linespacing=1.5,
+        wrap_chars=116,
     )
 
 
