@@ -20,8 +20,9 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import numpy as np
 import pandas as pd
+from matplotlib.artist import Artist
 from matplotlib.gridspec import GridSpec
-from matplotlib.patches import FancyBboxPatch
+from matplotlib.patches import Rectangle
 
 from scripts.factors_catalog import Factor
 from scripts.factsheet import metrics, theme
@@ -100,35 +101,19 @@ def _draw_header(fig: plt.Figure, factor: Factor) -> None:
         textwrap.fill(
             (
                 "Diagnostics on the raw factor values, independent of "
-                "portfolio construction. The quintile and IC plots show "
-                "whether the signal cross-sectionally separates "
-                "outperformers from underperformers — and how consistently."
+                "portfolio construction: the quantile and IC plots show "
+                "whether the signal cross-sectionally separates out- from "
+                "under-performers, and how consistently. Computed "
+                f"point-in-time on the rolling Top {factor.default_universe} "
+                "universe (the live factor spans many more tokens — see the "
+                "raw factor-data CSV in the data room)."
             ),
-            width=110,
+            width=116,
         ),
-        fontsize=10,
+        fontsize=9.5,
         color=theme.SUB_INK,
         va="top",
-        linespacing=1.55,
-    )
-    fig.text(
-        MARGIN_X,
-        0.808,
-        textwrap.fill(
-            (
-                f"Computed on the rolling Top {factor.default_universe} "
-                "universe — membership reconstructed point-in-time on each "
-                "date to avoid look-ahead bias. The factor itself covers a "
-                "much larger universe of tokens (see the raw factor-data "
-                "CSV in the data room)."
-            ),
-            width=128,
-        ),
-        fontsize=7.5,
-        style="italic",
-        color=theme.MUTED,
-        va="top",
-        linespacing=1.4,
+        linespacing=1.5,
     )
 
 
@@ -166,16 +151,14 @@ _NOTICE = (
 
 _ABOUT = (
     "Unravel publishes a catalog of cross-sectional, market-neutral crypto "
-    "factors, each delivered with point-in-time historical data and live "
-    "signals. Individual factors are designed to be combined: blended into a "
-    "multi-factor portfolio they diversify away single-factor risk and "
-    "produce a steadier return stream than any one factor alone. Explore the "
-    "full catalog, the multi-factor construction methodology and API access "
-    "at unravel.finance — see the further materials linked below."
+    "factors — each with point-in-time history and live signals — designed "
+    "to be combined into multi-factor portfolios that diversify away "
+    "single-factor risk. Full catalog, methodology and API at "
+    "unravel.finance; see the materials below."
 )
 
 _ABOUT_WRAP = 150
-_BTN_H = 0.026
+_BTN_H = 0.030
 
 
 def _section_rule(fig: plt.Figure, y_top: float, label: str) -> None:
@@ -200,6 +183,53 @@ def _section_rule(fig: plt.Figure, y_top: float, label: str) -> None:
     )
 
 
+class _RectLink(Artist):
+    """Inject a PDF Link annotation over a figure-fraction rectangle.
+
+    matplotlib's PDF backend only emits link annotations for *text*, never
+    for patches, so a Rectangle's `set_url` is silently dropped. This artist
+    adds the whole-button hyperlink ourselves via the official
+    `_get_link_annotation` helper, and degrades to a no-op on any non-PDF
+    backend (or if matplotlib's private API ever moves).
+    """
+
+    def __init__(self, fig: plt.Figure, rect: tuple, url: str) -> None:
+        super().__init__()
+        self._fig = fig
+        self._rect = rect  # (x, y, w, h) in figure fractions
+        self._url = url
+        self.set_zorder(7)
+
+    def draw(self, renderer) -> None:  # noqa: ANN001
+        try:
+            from matplotlib.backends.backend_pdf import (
+                RendererPdf,
+                _get_link_annotation,
+            )
+
+            # The PDF backend draws through a MixedModeRenderer wrapper;
+            # unwrap the `_renderer` chain to reach the real RendererPdf.
+            pdf = renderer
+            seen = set()
+            while pdf is not None and id(pdf) not in seen:
+                seen.add(id(pdf))
+                if isinstance(pdf, RendererPdf):
+                    break
+                pdf = getattr(pdf, "_renderer", None)
+            if not isinstance(pdf, RendererPdf):
+                return
+            x, y, w, h = self._rect
+            (x0, y0) = self._fig.transFigure.transform((x, y))
+            (x1, y1) = self._fig.transFigure.transform((x + w, y + h))
+            gc = pdf.new_gc()
+            gc.set_url(self._url)
+            pdf.file._annotations[-1][1].append(
+                _get_link_annotation(gc, x0, y0, x1 - x0, y1 - y0)
+            )
+        except Exception:  # noqa: BLE001 — never break factsheet generation
+            return
+
+
 def _draw_link_button(
     fig: plt.Figure,
     x: float,
@@ -210,50 +240,48 @@ def _draw_link_button(
     *,
     primary: bool,
 ) -> None:
-    """A website-style pill button (clickable in the PDF). Primary = filled
-    ink; secondary = outlined."""
+    """A website-style square-cornered button. The whole rectangle is a
+    single clickable link in the PDF. Primary = filled ink; secondary =
+    outlined (matches the site's sharp-cornered button styling)."""
     face = theme.INK if primary else "#FFFFFF"
     edge = theme.INK if primary else "#D4D4D4"
     fg = "#FFFFFF" if primary else theme.INK
-    box = FancyBboxPatch(
+    box = Rectangle(
         (x, y),
         w,
         _BTN_H,
-        boxstyle=f"round,pad=0,rounding_size={_BTN_H * 0.5:.4f}",
         transform=fig.transFigure,
         facecolor=face,
         edgecolor=edge,
-        linewidth=0.8,
+        linewidth=0.9,
         clip_on=False,
         zorder=5,
     )
-    box.set_url(url)
     fig.add_artist(box)
+    fig.add_artist(_RectLink(fig, (x, y, w, _BTN_H), url))
     mid = y + _BTN_H / 2
-    t = fig.text(
-        x + 0.013,
+    fig.text(
+        x + 0.014,
         mid,
         label,
-        fontsize=7.5,
+        fontsize=8,
         weight="semibold",
         color=fg,
         va="center",
         ha="left",
         zorder=6,
     )
-    t.set_url(url)
-    a = fig.text(
-        x + w - 0.011,
+    fig.text(
+        x + w - 0.012,
         mid,
         "→",
-        fontsize=9,
+        fontsize=9.5,
         weight="bold",
         color=fg,
         va="center",
         ha="right",
         zorder=6,
     )
-    a.set_url(url)
 
 
 def _draw_about_and_notice(fig: plt.Figure, factor: Factor) -> None:
@@ -598,8 +626,8 @@ def render_page_two(
         figure=fig,
         left=MARGIN_X,
         right=RIGHT_X,
-        top=0.745,
-        bottom=0.375,
+        top=0.778,
+        bottom=0.345,
         hspace=0.55,
     )
 
