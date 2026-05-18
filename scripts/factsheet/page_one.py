@@ -3,7 +3,7 @@
 Hierarchy (top → bottom):
 
     header rule
-    title  ·  subtitle                                        | signal quality bars
+    title  ·  subtitle                                        | quantile-alpha bars
     pull quote (optional, `factor.effect`)
     overview (2-col, justified)
     EXAMPLE TOP N CROSS-SECTIONAL PORTFOLIO
@@ -139,7 +139,7 @@ def _draw_hero(
 
 
 def _draw_top_right_quantile_bars(fig: plt.Figure, clean: pd.DataFrame) -> None:
-    """Mini signal-quality chart — 5 bars (Q1..Q5) of demeaned 1D mean
+    """Mini quantile-alpha chart — 5 bars (Q1..Q5) of demeaned 1D mean
     forward return. Sits where the sparkline used to. Same data source as the
     full-width bar chart on page 2."""
     try:
@@ -161,7 +161,7 @@ def _draw_top_right_quantile_bars(fig: plt.Figure, clean: pd.DataFrame) -> None:
     fig.text(
         spark_left,
         spark_bottom + spark_h + 0.012,
-        "SIGNAL QUALITY  ·  MEAN ALPHA BY QUANTILE (1D, BPS)",
+        "MEAN ALPHA BY QUANTILE  ·  1D (BPS)",
         fontsize=6.5,
         color=theme.MUTED,
         weight="semibold",
@@ -415,7 +415,6 @@ def _draw_kpi_strip(fig: plt.Figure, stats: metrics.Stats, y: float) -> None:
         ("Sharpe",        metrics.fmt_ratio(stats.sharpe),     "vs. RFR = 0"),
         ("Sortino",       metrics.fmt_ratio(stats.sortino),    "downside-only"),
         ("Max Drawdown",  metrics.fmt_pct(stats.max_drawdown), "peak-to-trough"),
-        ("Calmar",        metrics.fmt_ratio(stats.calmar),     "return / drawdown"),
     ]
     n = len(cards)
     card_w = COL_WIDTH / n
@@ -594,7 +593,7 @@ def render_page_one(
     """Render page 1.
 
     `clean` is the AlphaLens-cleaned (factor, forward returns) frame used by
-    the top-right signal-quality bar chart. When None (e.g. during synthetic
+    the top-right quantile-alpha bar chart. When None (e.g. during synthetic
     smoke tests) the bars are skipped gracefully and the rest of the page
     still renders.
     """
