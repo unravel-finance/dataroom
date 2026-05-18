@@ -53,6 +53,10 @@ jobs:
     timeout-minutes: 120
     env:
       UNRAVEL_API_KEY: ${{ secrets.UNRAVEL_API_KEY }}
+      # Notebooks are independent; the generator fans conversion + execution
+      # out across this many workers (work is API-I/O bound, so this is about
+      # throughput without hammering the shared API). Tune here if needed.
+      NOTEBOOK_JOBS: '4'
 
     steps:
       - uses: actions/checkout@v6

@@ -21,8 +21,10 @@ secrets in the "Generate Notebooks" CI workflow).
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from scripts.factors_catalog import Factor, load_factors
@@ -191,30 +193,51 @@ def write_scripts(factors: list[Factor]) -> list[Path]:
     return written
 
 
-def to_notebook(py_file: Path) -> Path:
-    ipynb = py_file.with_suffix(".ipynb")
-    subprocess.run(
-        ["jupytext", "--to", "notebook", "--output", str(ipynb), str(py_file)],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    print(f"  converted {ipynb.relative_to(REPO_ROOT)}")
-    return ipynb
-
-
 LOGS_DIR = NOTEBOOKS_DIR / "_execution_logs"
 REPORT = NOTEBOOKS_DIR / "_execution_report.md"
 
 
-def execute(ipynb: Path) -> tuple[bool, str]:
-    """Execute a notebook in place. Returns (ok, captured_output).
+def _job_count(default: int = 4) -> int:
+    """Parallel workers for the per-notebook pipeline.
 
-    Never raises on a notebook error -- the output is captured so the CI run
-    can commit a diagnosable report back to the branch (we have no other way
-    to read Actions logs from here)."""
-    print(f"  executing {ipynb.relative_to(REPO_ROOT)} ...")
-    proc = subprocess.run(
+    Each notebook is independent (own portfolio, own API calls, own output
+    file), so conversion + execution fan out cleanly. The work is dominated
+    by Unravel API round-trips, so the default is deliberately conservative
+    (not about CPU -- about not hammering the shared API; unravel-client
+    already retries transient errors). Override via NOTEBOOK_JOBS.
+    """
+    raw = os.environ.get("NOTEBOOK_JOBS", "").strip()
+    if not raw:
+        return default
+    try:
+        return max(int(raw), 1)
+    except ValueError:
+        return default
+
+
+def _run(cmd: list[str]) -> tuple[bool, str]:
+    proc = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO_ROOT)
+    return proc.returncode == 0, (proc.stdout or "") + (proc.stderr or "")
+
+
+def process(py_file: Path, do_execute: bool) -> tuple[str, bool, str]:
+    """Convert (and optionally execute) one notebook. Never raises -- the
+    captured output is aggregated into the report so a failing CI run can
+    commit a diagnosable artefact back (Actions logs aren't readable here)."""
+    stem = py_file.stem
+    ipynb = py_file.with_suffix(".ipynb")
+
+    ok, output = _run(
+        ["jupytext", "--to", "notebook", "--output", str(ipynb), str(py_file)]
+    )
+    if not ok:
+        return stem, False, output
+    if not do_execute:
+        print(f"  converted {ipynb.name}")
+        return stem, True, ""
+
+    print(f"  converting + executing {ipynb.name} ...")
+    ok, output = _run(
         [
             "jupyter",
             "nbconvert",
@@ -226,18 +249,14 @@ def execute(ipynb: Path) -> tuple[bool, str]:
             "--ExecutePreprocessor.kernel_name=python3",
             "--ExecutePreprocessor.timeout=1800",
             str(ipynb),
-        ],
-        capture_output=True,
-        text=True,
-        cwd=REPO_ROOT,
+        ]
     )
-    output = (proc.stdout or "") + (proc.stderr or "")
-    ok = proc.returncode == 0
     if not ok:
-        LOGS_DIR.mkdir(parents=True, exist_ok=True)
-        (LOGS_DIR / f"{ipynb.stem}.log").write_text(output)
-        print(f"    FAILED ({ipynb.stem}) -- see notebooks/_execution_logs/")
-    return ok, output
+        (LOGS_DIR / f"{stem}.log").write_text(output)
+        print(f"  FAILED {stem} -- see notebooks/_execution_logs/{stem}.log")
+    else:
+        print(f"  OK {stem}")
+    return stem, ok, output
 
 
 def main(argv: list[str]) -> None:
@@ -255,24 +274,26 @@ def main(argv: list[str]) -> None:
     print(f"Generating notebooks for {len(factors)} factor(s):")
     scripts = write_scripts(factors)
 
-    print("Converting to notebooks:")
-    notebooks = [to_notebook(p) for p in scripts]
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    jobs = min(_job_count(), len(scripts))
+    verb = "Converting + executing" if do_execute else "Converting"
+    print(f"{verb} {len(scripts)} notebook(s) with {jobs} worker(s):")
+
+    with ThreadPoolExecutor(max_workers=jobs) as pool:
+        results = list(pool.map(lambda p: process(p, do_execute), scripts))
+
+    failures = [
+        (stem, "\n".join(out.strip().splitlines()[-60:]))
+        for stem, ok, out in sorted(results)
+        if not ok
+    ]
 
     if do_execute:
-        print("Executing notebooks (requires UNRAVEL_API_KEY):")
-        failures: list[tuple[str, str]] = []
-        for nb in notebooks:
-            ok, output = execute(nb)
-            if not ok:
-                # Keep the last ~60 lines -- enough for the traceback.
-                tail = "\n".join(output.strip().splitlines()[-60:])
-                failures.append((nb.stem, tail))
-
         lines = [
             "# Notebook execution report",
             "",
-            f"Total: {len(notebooks)} | "
-            f"Passed: {len(notebooks) - len(failures)} | "
+            f"Total: {len(results)} | "
+            f"Passed: {len(results) - len(failures)} | "
             f"Failed: {len(failures)}",
             "",
         ]
@@ -281,11 +302,10 @@ def main(argv: list[str]) -> None:
         REPORT.write_text("\n".join(lines) + "\n")
         print(f"Wrote {REPORT.relative_to(REPO_ROOT)}")
 
-        if failures:
-            raise SystemExit(
-                f"{len(failures)} notebook(s) failed to execute: "
-                f"{[n for n, _ in failures]}"
-            )
+    if failures:
+        raise SystemExit(
+            f"{len(failures)} notebook(s) failed: {[n for n, _ in failures]}"
+        )
 
     print("Done.")
 
