@@ -94,8 +94,8 @@ def _draw_header(fig: plt.Figure, factor: Factor) -> None:
             (
                 "Diagnostics on the raw factor values, independent of "
                 "portfolio construction. The quintile and IC plots show "
-                "whether the signal cross-sectionally separates outperformers "
-                "from underperformers — and how consistently."
+                "whether the signal cross-sectionally separates "
+                "outperformers from underperformers — and how consistently."
             ),
             width=110,
         ),
@@ -103,6 +103,25 @@ def _draw_header(fig: plt.Figure, factor: Factor) -> None:
         color=theme.SUB_INK,
         va="top",
         linespacing=1.55,
+    )
+    fig.text(
+        MARGIN_X,
+        0.808,
+        textwrap.fill(
+            (
+                f"Computed on the rolling Top {factor.default_universe} "
+                "universe — membership reconstructed point-in-time on each "
+                "date to avoid look-ahead bias. The factor itself covers a "
+                "much larger universe of tokens (see the raw factor-data "
+                "CSV in the data room)."
+            ),
+            width=128,
+        ),
+        fontsize=7.5,
+        style="italic",
+        color=theme.MUTED,
+        va="top",
+        linespacing=1.4,
     )
 
 
@@ -439,7 +458,7 @@ def render_page_two(
         figure=fig,
         left=MARGIN_X,
         right=RIGHT_X,
-        top=0.76,
+        top=0.745,
         bottom=0.090,
         hspace=0.65,
         wspace=0.28,

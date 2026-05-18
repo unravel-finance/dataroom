@@ -26,10 +26,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 from unravel_client import (
+    get_historical_universe,
     get_portfolio_factors_historical,
     get_portfolio_returns,
     get_prices,
-    get_tickers,
 )
 
 from scripts.factors_catalog import Factor, load_factors
@@ -52,24 +52,56 @@ def _get_api_key() -> str:
 def _fetch_factor_inputs(
     factor: Factor, api_key: str
 ) -> tuple[pd.Series, pd.DataFrame, pd.DataFrame]:
+    """Fetch the inputs for the factsheet.
+
+    The page-2 AlphaLens analysis (and the page-1 signal-quality bars) are
+    run on the *rolling* Top-N universe — i.e. only the assets that were
+    actually in the Top-N membership on each date, reconstructed
+    point-in-time to avoid look-ahead bias. The raw, full-universe factor
+    data is still exported to CSV separately by scripts.export_data, so the
+    data-room CSV keeps the large universe.
+    """
     template_id = factor.portfolio_id.split(".")[0]
 
     returns = get_portfolio_returns(id=factor.portfolio_id, api_key=api_key)
     returns = returns.dropna()
     returns.index = pd.to_datetime(returns.index)
+    start_date = returns.index.min().strftime("%Y-%m-%d")
+    end_date = returns.index.max().strftime("%Y-%m-%d")
 
-    tickers = get_tickers(
-        id=template_id,
+    # Rolling Top-N universe membership: date × ticker, truthy where the
+    # asset was a member on that date.
+    universe = get_historical_universe(
+        size=factor.default_universe,
+        start_date=start_date,
+        end_date=end_date,
         api_key=api_key,
-        universe_size=factor.default_universe,
-        exchange=None,
     )
+    universe.index = pd.to_datetime(universe.index)
+    tickers = list(universe.columns)
+
     factor_data = get_portfolio_factors_historical(
-        id=template_id, tickers=tickers, api_key=api_key
+        id=template_id,
+        tickers=tickers,
+        api_key=api_key,
+        start_date=start_date,
+        end_date=end_date,
     )
     factor_data.index = pd.to_datetime(factor_data.index)
+    # Mask to the rolling universe — values for assets outside the Top-N on
+    # a given date become NaN and are dropped by AlphaLens.
+    factor_data = factor_data.where(
+        universe.reindex(
+            index=factor_data.index, columns=factor_data.columns
+        ).astype("boolean")
+    )
 
-    prices = get_prices(tickers=tickers, api_key=api_key)
+    prices = get_prices(
+        tickers=tickers,
+        api_key=api_key,
+        start_date=start_date,
+        end_date=end_date,
+    )
     prices.index = pd.to_datetime(prices.index)
     return returns, factor_data, prices
 
