@@ -27,10 +27,12 @@ This repository provides transparent, easy-to-understand code examples for:
 
 - AlphaLens factor analysis run on the **dynamic, point-in-time universe**
   (via `get_historical_universe`) rather than every ticker ever tradeable
-- **`notebooks/factor_analysis_<id>.{py,ipynb}`**: one notebook per
-  single-factor portfolio in the catalog
-- **`notebooks/factor_returns_correlation.{py,ipynb}`**: cross-sectional
-  returns correlation across every catalog portfolio
+- **[`notebooks/`](notebooks/)**: browse here — one rendered `.ipynb` per
+  single-factor portfolio, with [`notebooks/README.md`](notebooks/README.md)
+  as the index and `00_factor_returns_correlation.ipynb` (cross-factor
+  correlation) listed first
+- Jupytext sources live in `notebooks/src/`; the rendered notebooks are
+  generated and executed by CI
 
 The `notebooks/` tree is generated from the factor catalog in
 [`scripts/factors_catalog.py`](scripts/factors_catalog.py) by
@@ -129,7 +131,7 @@ jupyter notebook notebooks/factor_analysis_momentum.ipynb
 Analyze correlations across every catalog portfolio's returns:
 
 ```bash
-jupyter notebook notebooks/factor_returns_correlation.ipynb
+jupyter notebook notebooks/00_factor_returns_correlation.ipynb
 ```
 
 ## Available Portfolios

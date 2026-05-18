@@ -93,13 +93,23 @@ jobs:
           path: notebooks/
           if-no-files-found: error
 
+      # Execution report + per-notebook failure logs. Kept out of the
+      # committed tree (gitignored) and surfaced here for debugging instead.
+      - name: Upload execution diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: execution-diagnostics
+          path: ci-artifacts/
+          if-no-files-found: ignore
+
       # --- delivery -------------------------------------------------------
 
       # Fast iteration: push to the dev branch commits the executed
       # notebooks straight back so this PR shows the real output. Runs even
       # on failure (always()) during the temporary dev-branch phase so the
-      # _execution_report.md / _execution_logs are committed back for
-      # diagnosis -- we cannot read Actions logs from the dev workflow.
+      # latest rendered notebooks land for review; the execution report /
+      # failure logs are uploaded as the execution-diagnostics artefact.
       - name: Commit executed notebooks back to the branch
         if: ${{ always() && github.event_name == 'push' && github.ref_name != 'main' }}
         run: |

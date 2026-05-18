@@ -1,5 +1,6 @@
 .env
-__pycache__/**  
+ci-artifacts/
+__pycache__/**
 *.pyc
 *.pyo
 *.pyd
