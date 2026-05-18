@@ -74,6 +74,99 @@ def compute_stats(returns: pd.Series) -> Stats:
     )
 
 
+# --- windowed performance / risk tables (page 1) -----------------------------
+
+# (label, calendar-day lookback). None = since inception.
+_RETURN_WINDOWS: list[tuple[str, int | None]] = [
+    ("1M", 30),
+    ("3M", 91),
+    ("1Y", 365),
+    ("3Y", 365 * 3),
+    ("5Y", 365 * 5),
+    ("SI", None),
+]
+_RISK_WINDOWS: list[tuple[str, int]] = [
+    ("1M", 30),
+    ("3M", 91),
+    ("1Y", 365),
+    ("3Y", 365 * 3),
+]
+
+
+def _window_slice(returns: pd.Series, days: int | None) -> pd.Series:
+    if days is None:
+        return returns
+    cutoff = returns.index[-1] - pd.Timedelta(days=days)
+    return returns.loc[returns.index > cutoff]
+
+
+def gross_return_by_window(returns: pd.Series) -> dict[str, float]:
+    """Compound (gross) return over each trailing window. NaN when the
+    history is shorter than the window."""
+    r = returns.dropna()
+    span_days = (r.index[-1] - r.index[0]).days
+    out: dict[str, float] = {}
+    for label, days in _RETURN_WINDOWS:
+        if days is not None and days > span_days + 1:
+            out[label] = float("nan")
+            continue
+        w = _window_slice(r, days)
+        out[label] = float((1.0 + w).prod() - 1.0) if not w.empty else float("nan")
+    return out
+
+
+def annual_returns(returns: pd.Series) -> dict[str, float]:
+    """Calendar-year compound returns; the last (partial) year is labelled
+    YTD."""
+    r = returns.dropna()
+    yearly = (1.0 + r).groupby(r.index.year).prod() - 1.0
+    out: dict[str, float] = {}
+    last_year = r.index[-1].year
+    for year, val in yearly.items():
+        out["YTD" if year == last_year else str(year)] = float(val)
+    return out
+
+
+def realized_vol_by_window(returns: pd.Series) -> dict[str, float]:
+    """Annualised realised volatility over each trailing window."""
+    r = returns.dropna()
+    span_days = (r.index[-1] - r.index[0]).days
+    out: dict[str, float] = {}
+    for label, days in _RISK_WINDOWS:
+        if days > span_days + 1:
+            out[label] = float("nan")
+            continue
+        w = _window_slice(r, days)
+        out[label] = (
+            float(w.std() * np.sqrt(TRADING_DAYS)) if len(w) > 2 else float("nan")
+        )
+    return out
+
+
+def return_to_risk_by_window(returns: pd.Series) -> dict[str, float]:
+    """Gross return over a window divided by that window's realised vol —
+    the same construction Kaiko's factsheets use."""
+    gr = gross_return_by_window(returns)
+    vol = realized_vol_by_window(returns)
+    out: dict[str, float] = {}
+    for label, _ in _RISK_WINDOWS:
+        g, v = gr.get(label), vol.get(label)
+        out[label] = (
+            g / v if g is not None and v not in (None, 0) and not np.isnan(v) else float("nan")
+        )
+    return out
+
+
+def max_drawdown_with_date(returns: pd.Series) -> tuple[float, date | None]:
+    """Max drawdown and the date the trough was hit."""
+    r = returns.dropna()
+    dd = qs.to_drawdown_series(r)
+    if dd.empty:
+        return float("nan"), None
+    trough = dd.idxmin()
+    return float(dd.min()), trough.date()
+
+
 def fmt_pct(x: float, digits: int = 1) -> str:
     if x is None or np.isnan(x):
         return "—"

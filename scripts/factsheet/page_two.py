@@ -125,6 +125,67 @@ def _draw_header(fig: plt.Figure, factor: Factor) -> None:
     )
 
 
+_NOTICE = (
+    "Unless indicated otherwise, this document and all information contained "
+    "within — including, without limitation, all methods, processes, "
+    "concepts, text, data, graphs and charts (together, the “Content”) — is "
+    "the property of Unravel Finance and its affiliates (“Unravel”) or its "
+    "licensors. Unravel does not provide investment advice and nothing in "
+    "the Content shall be construed as such. In particular, the inclusion, "
+    "weighting or exclusion of an asset or exchange does not in any way "
+    "suggest or reflect an opinion of Unravel. Financial instruments based "
+    "on Unravel factors or indices are in no way sponsored, endorsed, sold "
+    "or promoted by Unravel. The Content is provided solely for "
+    "informational purposes based upon information generally available to "
+    "the public and from sources believed to be reliable. No Content may be "
+    "modified, reproduced, reverse engineered, or distributed in any form or "
+    "by any means without the prior written consent of Unravel. THE CONTENT "
+    "IS PROVIDED ON AN “AS IS” BASIS AND UNRAVEL DISCLAIMS ANY AND ALL "
+    "EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO ANY "
+    "WARRANTIES OF FITNESS FOR A PARTICULAR PURPOSE OR USE, FREEDOM FROM "
+    "BUGS, OR SOFTWARE ERRORS OR DEFECTS. In no event shall Unravel be "
+    "liable for any direct, indirect, incidental, compensatory, punitive, "
+    "special or consequential damages, costs, expenses, legal fees or "
+    "losses (including, without limitation, lost income or lost profits and "
+    "opportunity costs) in connection with any use of the Content even if "
+    "advised of the possibility of such damages. Performance shown is "
+    "derived from an illustrative single-factor portfolio and may include "
+    "hypothetical, back-tested results that reflect application of a "
+    "methodology with the benefit of hindsight; actual results may differ "
+    "materially. Past performance is not an indication or guarantee of "
+    "future results."
+)
+
+
+def _draw_notice(fig: plt.Figure) -> None:
+    """Notice & Disclaimer block — Unravel-tailored, institutional style."""
+    y = 0.270
+    fig.text(
+        MARGIN_X,
+        y,
+        "NOTICE & DISCLAIMER",
+        fontsize=8,
+        color=theme.INK,
+        weight="semibold",
+        va="top",
+    )
+    fig.add_artist(
+        plt.Line2D(
+            [MARGIN_X, RIGHT_X], [y - 0.012, y - 0.012],
+            color=theme.HAIR, linewidth=0.6,
+        )
+    )
+    fig.text(
+        MARGIN_X,
+        y - 0.026,
+        textwrap.fill(_NOTICE, width=164),
+        fontsize=5.8,
+        color=theme.MUTED,
+        va="top",
+        linespacing=1.42,
+    )
+
+
 def _draw_footer(fig: plt.Figure, factor: Factor) -> None:
     fig.add_artist(
         plt.Line2D(
@@ -214,8 +275,9 @@ def _plot_mean_return_by_quantile(ax: plt.Axes, clean: pd.DataFrame) -> None:
     quantiles = list(mean_q.index)
     n_q = len(quantiles)
     n_p = len(periods)
-    # Fill ~96% of each quantile slot so the bars use the available width.
-    group_w = 0.96
+    # Thinner bar group (~0.55 of the slot) so there are clear gaps between
+    # quantile buckets.
+    group_w = 0.55
     bar_w = group_w / max(n_p, 1)
     x_base = np.arange(n_q)
     # Single colour scheme — three shades of grey (dark = shortest period).
@@ -230,7 +292,8 @@ def _plot_mean_return_by_quantile(ax: plt.Axes, clean: pd.DataFrame) -> None:
             edgecolor="none",
             label=str(period),
         )
-    ax.axhline(0, color=theme.HAIR, linewidth=0.6)
+    # Bolder zero line — the reference axis the bars are read against.
+    ax.axhline(0, color=theme.SUB_INK, linewidth=1.1, zorder=1)
     ax.set_xticks(x_base)
     ax.set_xticklabels([str(q) for q in quantiles])
     ax.set_xlim(-0.5, n_q - 0.5)  # bars span the full panel width
@@ -362,71 +425,6 @@ def _plot_cumulative_quantile_returns(ax: plt.Axes, clean: pd.DataFrame) -> None
     _set_year_ticks(ax)
 
 
-def _plot_top_minus_bottom(ax: plt.Axes, clean: pd.DataFrame) -> None:
-    """Top-minus-bottom quantile mean return — matches AlphaLens'
-    plot_top_minus_bottom_quantile_mean_return: the daily spread (in bps) plus
-    a 21-day moving average. We previously rendered this as a cumulative
-    equity curve, but that produced a 5-year compounded multiple that's
-    visually disconnected from the AlphaLens reference output (and the
-    underlying daily spread of ~20 bps for retail_flow).
-
-    Direction is picked from the historical quantile P&L — the chart
-    always reads in the profitable direction.
-    """
-    by_q, period = _quantile_daily_returns(clean)
-    if by_q.shape[1] < 2:
-        ax.axis("off")
-        return
-    top_q = by_q.columns.max()
-    bot_q = by_q.columns.min()
-    if by_q[top_q].mean() >= by_q[bot_q].mean():
-        long_q, short_q = top_q, bot_q
-    else:
-        long_q, short_q = bot_q, top_q
-
-    spread_bps = (by_q[long_q] - by_q[short_q]) * 1e4
-    ma = spread_bps.rolling(21, min_periods=5).mean()
-
-    # Daily spread as soft grey bars (AlphaLens uses thin vertical lines).
-    ax.bar(
-        spread_bps.index,
-        spread_bps.values,
-        color=theme.HAIR,
-        edgecolor="none",
-        width=2.0,
-        zorder=1,
-    )
-    # 21-day MA in brand teal — the signal we're really after.
-    ax.plot(
-        ma.index,
-        ma.values,
-        color=theme.ACCENT,
-        linewidth=1.4,
-        zorder=2,
-        label="21-day MA",
-    )
-    mean_spread = float(spread_bps.mean())
-    ax.axhline(
-        mean_spread,
-        color=theme.INK,
-        linewidth=0.9,
-        linestyle=(0, (3, 2)),
-        zorder=3,
-        label=f"Mean  {mean_spread:+.1f} bps".replace("-", theme.MINUS),
-    )
-    ax.axhline(0, color=theme.HAIR, linewidth=0.6)
-    ax.set_title(
-        f"Top minus Bottom Quantile Spread  (long Q{long_q}, short Q{short_q})",
-        loc="left",
-        color=theme.INK,
-    )
-    ax.set_ylabel(f"Spread ({period}, bps)")
-    ax.grid(axis="y", linewidth=0.4, alpha=0.6)
-    ax.legend(loc="upper right", fontsize=7)
-    _strip_top_right(ax)
-    _set_year_ticks(ax)
-
-
 def _empty_quant_page(factor: Factor, reason: str) -> plt.Figure:
     fig = theme.new_page()
     _draw_header(fig, factor)
@@ -454,28 +452,23 @@ def render_page_two(
     fig = theme.new_page()
     _draw_header(fig, factor)
 
-    # Three rows. Rows 1 and 2 span both columns — the grouped quantile bar
-    # chart needs the width for its 3-period bars, and the log-scale
-    # cumulative-by-quantile chart needs it to show all five lines without
-    # squashing. Row 3 splits into IC and long-short side by side.
+    # Three full-width rows: quantile bars, cumulative-by-quantile, IC.
+    # Stops above 0.30 so the Notice & Disclaimer block has room below.
     gs = GridSpec(
         nrows=3,
-        ncols=2,
+        ncols=1,
         figure=fig,
         left=MARGIN_X,
         right=RIGHT_X,
         top=0.745,
-        bottom=0.090,
-        hspace=0.65,
-        wspace=0.28,
-        height_ratios=[1.0, 1.0, 1.0],
+        bottom=0.300,
+        hspace=0.80,
     )
 
     plotters = [
-        (gs[0, :], _plot_mean_return_by_quantile, "Quantile means"),
-        (gs[1, :], _plot_cumulative_quantile_returns, "Cumulative quantile"),
+        (gs[0, 0], _plot_mean_return_by_quantile, "Quantile means"),
+        (gs[1, 0], _plot_cumulative_quantile_returns, "Cumulative quantile"),
         (gs[2, 0], _plot_ic_with_stats, "IC"),
-        (gs[2, 1], _plot_top_minus_bottom, "Long–short"),
     ]
     for slot, fn, label in plotters:
         ax = fig.add_subplot(slot)
@@ -493,5 +486,6 @@ def render_page_two(
                 color=theme.MUTED,
             )
 
+    _draw_notice(fig)
     _draw_footer(fig, factor)
     return fig

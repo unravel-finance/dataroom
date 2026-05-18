@@ -29,7 +29,6 @@ import pandas as pd
 
 from scripts.factors_catalog import Factor
 from scripts.factsheet import metrics, theme
-from scripts.factsheet.heatmap import render_monthly_heatmap
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 LOGO_PNG = REPO_ROOT / "branding" / "unravel-logo.png"
@@ -172,13 +171,13 @@ def _draw_top_right_quantile_bars(fig: plt.Figure, clean: pd.DataFrame) -> None:
         values,
         color=theme.MUTED,
         edgecolor="none",
-        width=0.92,
+        width=0.55,  # thin bars, clear gaps between buckets
     )
     ax.set_xticks(range(len(quantiles)))
     ax.set_xticklabels([str(q) for q in quantiles])
-    ax.set_xlim(-0.5, len(quantiles) - 0.5)  # bars fill the panel width
+    ax.set_xlim(-0.5, len(quantiles) - 0.5)
     ax.margins(y=0.05)
-    ax.axhline(0, color=theme.HAIR, linewidth=0.5)
+    ax.axhline(0, color=theme.SUB_INK, linewidth=1.0, zorder=1)
     ax.tick_params(axis="x", which="both", length=0, labelsize=6.5, colors=theme.MUTED, pad=1)
     ax.tick_params(axis="y", which="both", length=0, labelsize=6.0, colors=theme.MUTED)
     for spine_name in ("top", "right", "left"):
@@ -405,65 +404,144 @@ def _draw_section_eyebrow(
         )
 
 
-# ---------- KPI strip ---------------------------------------------------------
+# ---------- tabular performance / risk bands ---------------------------------
 
 
-def _draw_kpi_strip(fig: plt.Figure, stats: metrics.Stats, y: float) -> None:
-    """Six-card KPI strip. Slightly compressed (h=0.065) so the cumulative
-    chart fits below the strip on the same page."""
-    cards = [
-        ("CAGR",          metrics.fmt_pct(stats.cagr),         "since inception"),
-        ("Volatility",    metrics.fmt_pct(stats.annual_vol),   "annualised"),
-        ("Sharpe",        metrics.fmt_ratio(stats.sharpe),     "vs. RFR = 0"),
-        ("Sortino",       metrics.fmt_ratio(stats.sortino),    "downside-only"),
-        ("Max Drawdown",  metrics.fmt_pct(stats.max_drawdown), "peak-to-trough"),
-    ]
-    n = len(cards)
-    card_w = COL_WIDTH / n
-    card_h = 0.065
-    for i, (label, value, sub) in enumerate(cards):
-        x = MARGIN_X + i * card_w
-        if i > 0:
-            fig.add_artist(
-                plt.Line2D(
-                    [x, x],
-                    [y, y + card_h],
-                    color=theme.HAIR,
-                    linewidth=0.5,
-                )
-            )
+def _draw_table_band(
+    fig: plt.Figure,
+    y_top: float,
+    groups: list[dict],
+    *,
+    gap: float = 0.020,
+) -> None:
+    """Draw a horizontal band of grouped mini-tables (institutional-factsheet
+    style). Each group: {'title': str, 'cols': [(header, value), ...],
+    'weight': float}. Layout per group: title → rule → column headers →
+    values → rule."""
+    total_w = RIGHT_X - MARGIN_X
+    n = len(groups)
+    avail = total_w - gap * (n - 1)
+    sum_w = sum(g["weight"] for g in groups)
+
+    title_y = y_top
+    rule1_y = y_top - 0.014
+    header_y = y_top - 0.020
+    value_y = y_top - 0.038
+    rule2_y = y_top - 0.050
+
+    x = MARGIN_X
+    for g in groups:
+        gw = avail * g["weight"] / sum_w
         fig.text(
-            x + 0.012,
-            y + card_h - 0.006,
-            label.upper(),
-            fontsize=7.0,
-            color=theme.MUTED,
-            ha="left",
-            va="top",
-            weight="semibold",
-        )
-        fig.text(
-            x + 0.012,
-            y + card_h * 0.48,
-            value,
-            fontsize=16,
+            x,
+            title_y,
+            g["title"],
+            fontsize=7.5,
             color=theme.INK,
-            ha="left",
-            va="center",
-            weight="bold",
-            family=theme.display_font(),
+            weight="semibold",
+            va="top",
         )
-        fig.text(
-            x + 0.012,
-            y + 0.006,
-            sub,
-            fontsize=6.5,
-            color=theme.MUTED,
-            ha="left",
-            va="bottom",
+        fig.add_artist(
+            plt.Line2D([x, x + gw], [rule1_y, rule1_y], color=theme.HAIR, linewidth=0.6)
         )
-    _hline(fig, y + card_h, lw=0.6)
-    _hline(fig, y, lw=0.6)
+        cols = g["cols"]
+        cw = gw / len(cols)
+        for j, (hdr, val) in enumerate(cols):
+            cx = x + j * cw + cw / 2
+            fig.text(
+                cx, header_y, hdr, fontsize=6.5, color=theme.MUTED,
+                ha="center", va="top",
+            )
+            fig.text(
+                cx, value_y, val, fontsize=9, color=theme.INK,
+                ha="center", va="center", family=theme.display_font(),
+            )
+        fig.add_artist(
+            plt.Line2D([x, x + gw], [rule2_y, rule2_y], color=theme.HAIR, linewidth=0.6)
+        )
+        x += gw + gap
+
+
+def _draw_performance_band(
+    fig: plt.Figure, returns: pd.Series, stats: metrics.Stats, y_top: float
+) -> None:
+    fig.text(
+        MARGIN_X, y_top + 0.022, "PERFORMANCE",
+        fontsize=7, color=theme.MUTED, weight="semibold", va="top",
+    )
+    gr = metrics.gross_return_by_window(returns)
+    ann = metrics.annual_returns(returns)
+    ann_labels = sorted(
+        ann, key=lambda k: (k == "YTD", k)
+    )  # years ascending, YTD last
+    _draw_table_band(
+        fig,
+        y_top,
+        [
+            {
+                "title": "Gross Rate of Return",
+                "weight": 5,
+                "cols": [
+                    (lbl, metrics.fmt_pct(gr[lbl]))
+                    for lbl in ("1M", "3M", "1Y", "3Y", "5Y")
+                ],
+            },
+            {
+                "title": "Annual Performance (%)",
+                "weight": max(len(ann_labels), 3),
+                "cols": [
+                    (lbl, metrics.fmt_pct(ann[lbl])) for lbl in ann_labels
+                ],
+            },
+            {
+                "title": "Since Inception",
+                "weight": 1.5,
+                "cols": [("SI", metrics.fmt_pct(gr["SI"]))],
+            },
+        ],
+    )
+
+
+def _draw_risk_band(
+    fig: plt.Figure, returns: pd.Series, stats: metrics.Stats, y_top: float
+) -> None:
+    fig.text(
+        MARGIN_X, y_top + 0.022, "RISK & RETURN PROFILE",
+        fontsize=7, color=theme.MUTED, weight="semibold", va="top",
+    )
+    vol = metrics.realized_vol_by_window(returns)
+    rtr = metrics.return_to_risk_by_window(returns)
+    mdd, mdd_date = metrics.max_drawdown_with_date(returns)
+    _draw_table_band(
+        fig,
+        y_top,
+        [
+            {
+                "title": "Realised Volatility (annualised)",
+                "weight": 4,
+                "cols": [
+                    (lbl, metrics.fmt_pct(vol[lbl]))
+                    for lbl in ("1M", "3M", "1Y", "3Y")
+                ],
+            },
+            {
+                "title": "Return-to-Risk Ratio",
+                "weight": 4,
+                "cols": [
+                    (lbl, metrics.fmt_ratio(rtr[lbl]))
+                    for lbl in ("1M", "3M", "1Y", "3Y")
+                ],
+            },
+            {
+                "title": "Max Drawdown",
+                "weight": 2.4,
+                "cols": [
+                    ("%", metrics.fmt_pct(mdd)),
+                    ("Date", mdd_date.strftime("%Y-%m-%d") if mdd_date else "—"),
+                ],
+            },
+        ],
+    )
 
 
 # ---------- cumulative-return chart (below KPI strip) -------------------------
@@ -623,39 +701,14 @@ def render_page_one(
         ),
     )
 
-    # Monthly returns heatmap — half the previous vertical size
-    fig.text(
-        MARGIN_X,
-        0.460,
-        "MONTHLY RETURNS",
-        fontsize=7,
-        color=theme.MUTED,
-        weight="semibold",
-        va="top",
-    )
-    render_monthly_heatmap(
-        fig,
-        returns,
-        rect=(MARGIN_X, 0.385, COL_WIDTH, 0.070),
-        title="",
-    )
+    # Performance + risk tabular bands (replace the heatmap & KPI strip)
+    _draw_performance_band(fig, returns, stats, y_top=0.455)
+    _draw_risk_band(fig, returns, stats, y_top=0.360)
 
-    # Risk & return KPI strip
+    # Cumulative return — full width below the tables
     fig.text(
         MARGIN_X,
-        0.358,
-        "RISK & RETURN",
-        fontsize=7,
-        color=theme.MUTED,
-        weight="semibold",
-        va="top",
-    )
-    _draw_kpi_strip(fig, stats, y=0.284)
-
-    # Cumulative return — full width, double the previous vertical height
-    fig.text(
-        MARGIN_X,
-        0.262,
+        0.288,
         "CUMULATIVE RETURN",
         fontsize=7,
         color=theme.MUTED,
@@ -663,7 +716,7 @@ def render_page_one(
         va="top",
     )
     _draw_cumulative_chart(
-        fig, returns, rect=(MARGIN_X, 0.128, COL_WIDTH, 0.124)
+        fig, returns, rect=(MARGIN_X, 0.150, COL_WIDTH, 0.128)
     )
 
     _draw_disclaimer_and_footer(fig, factor)
