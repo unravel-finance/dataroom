@@ -4,7 +4,6 @@ Hierarchy (top → bottom):
 
     header rule
     title  ·  subtitle                                        | quantile-alpha bars
-    pull quote (optional, `factor.effect`)
     overview (2-col, justified)
     EXAMPLE TOP N CROSS-SECTIONAL PORTFOLIO
         MONTHLY RETURNS    · monthly heatmap
@@ -21,10 +20,10 @@ from datetime import date as _date
 
 import alphalens
 import matplotlib.dates as _mdates
-import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import matplotlib.ticker as _mtick
 import pandas as pd
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from scripts.factors_catalog import Factor
 from scripts.factsheet import metrics, theme
@@ -78,23 +77,96 @@ def _draw_header(fig: plt.Figure, factor: Factor, page: int) -> None:
 # ---------- hero --------------------------------------------------------------
 
 
-def _draw_hero(
-    fig: plt.Figure, factor: Factor, clean: pd.DataFrame | None
-) -> None:
-    fig.text(
-        MARGIN_X - 0.001,
-        0.908,
-        factor.name,
-        fontsize=36,
+def _text_extent_frac(fig: plt.Figure, txt: plt.Text) -> tuple[float, float]:
+    """(width, height) of a Text artist as a fraction of the figure.
+
+    Uses a throwaway Agg renderer so it works regardless of the output
+    backend (PdfPages swaps in its own canvas at save time)."""
+    renderer = FigureCanvasAgg(fig).get_renderer()
+    bb = txt.get_window_extent(renderer=renderer)
+    return bb.width / fig.bbox.width, bb.height / fig.bbox.height
+
+
+# Left edge of the top-right mini chart, minus a gutter — a long factor
+# name must not run past this into the chart.
+_TITLE_RIGHT_LIMIT = MARGIN_X + 0.55 * COL_WIDTH - 0.025
+_TITLE_X = MARGIN_X - 0.001
+_TITLE_TOP = 0.908
+_TITLE_BASE = 36.0
+# Shrink a single-line title down to this; if it would need to go smaller,
+# wrap to two lines instead (a 2-word name set big over two lines reads as
+# a stronger hero than one cramped small line). Hard floor for a wrapped line.
+_TITLE_SINGLE_MIN = 24.0
+_TITLE_HARD_MIN = 16.0
+
+
+def _balanced_two_lines(name: str) -> str:
+    """Split ``name`` at the word boundary that most evenly halves it."""
+    words = name.split()
+    if len(words) < 2:
+        return name
+    best_i, best_diff = 1, None
+    for i in range(1, len(words)):
+        left = len(" ".join(words[:i]))
+        diff = abs(left - (len(name) - left))
+        if best_diff is None or diff < best_diff:
+            best_diff, best_i = diff, i
+    return " ".join(words[:best_i]) + "\n" + " ".join(words[best_i:])
+
+
+def _draw_title(fig: plt.Figure, factor: Factor, right_limit: float) -> float:
+    """Big factor name, top-left. Never collides with whatever sits to its
+    right (the top-right quantile mini chart): shrink to fit, then wrap to
+    two lines if a single line would have to get too small. Returns the
+    title block's bottom edge (figure fraction)."""
+    budget = right_limit - _TITLE_X
+    kw = dict(
         fontweight="bold",
         color=theme.INK,
         va="top",
         family=theme.display_font(),
     )
-    fig.text(
+
+    def _place(text: str, size: float) -> plt.Text:
+        return fig.text(_TITLE_X, _TITLE_TOP, text, fontsize=size,
+                        linespacing=1.0, **kw)
+
+    t = _place(factor.name, _TITLE_BASE)
+    w, _ = _text_extent_frac(fig, t)
+    if w > budget:
+        # Width scales ~linearly with point size for a fixed string.
+        size = _TITLE_BASE * budget / w
+        if size >= _TITLE_SINGLE_MIN:
+            t.set_fontsize(size)
+        else:
+            t.remove()
+            t = _place(_balanced_two_lines(factor.name), _TITLE_BASE)
+            w2, _ = _text_extent_frac(fig, t)
+            if w2 > budget:
+                t.set_fontsize(max(_TITLE_HARD_MIN, _TITLE_BASE * budget / w2))
+    _, h = _text_extent_frac(fig, t)
+    return _TITLE_TOP - h
+
+
+def _draw_hero(
+    fig: plt.Figure, factor: Factor, clean: pd.DataFrame | None
+) -> float:
+    """Draw title + subtitle (+ mini chart). Returns the subtitle's bottom
+    edge (figure fraction) so the caller can flow the overview beneath it."""
+    right_limit = _TITLE_RIGHT_LIMIT if clean is not None else RIGHT_X
+    title_bottom = _draw_title(fig, factor, right_limit)
+    # The factor's "effect" one-liner is the strongest hook, so it leads as
+    # the subtitle when present; the plainer short_description is the
+    # fallback. (This replaces the old optional pull-quote band — the copy
+    # is the same `factor.effect` from factsheet-content/factors.yaml.)
+    subtitle = factor.effect or factor.short_description
+    # 0.012 gap reproduces the original title→subtitle rhythm for a normal
+    # one-line title and tracks it when the title wraps/shrinks.
+    subtitle_top = title_bottom - 0.012
+    st = fig.text(
         MARGIN_X,
-        0.853,
-        _wrap(factor.short_description, width=52),
+        subtitle_top,
+        _wrap(subtitle, width=52),
         fontsize=11,
         color=theme.SUB_INK,
         va="top",
@@ -102,6 +174,8 @@ def _draw_hero(
     )
     if clean is not None:
         _draw_top_right_quantile_bars(fig, clean)
+    _, h_frac = _text_extent_frac(fig, st)
+    return subtitle_top - h_frac
 
 
 def _draw_top_right_quantile_bars(fig: plt.Figure, clean: pd.DataFrame) -> None:
@@ -157,42 +231,6 @@ def _draw_top_right_quantile_bars(fig: plt.Figure, clean: pd.DataFrame) -> None:
         ax.spines[spine_name].set_visible(False)
     ax.spines["bottom"].set_color(theme.HAIR)
     ax.spines["bottom"].set_linewidth(0.5)
-
-
-# ---------- pull quote --------------------------------------------------------
-
-
-def _draw_pull_quote(fig: plt.Figure, factor: Factor) -> None:
-    if not factor.effect:
-        return
-    y_top = 0.788
-    y_bot = 0.728
-    _hline(fig, y_top, lw=0.6)
-    _hline(fig, y_bot, lw=0.6)
-    mark_x = MARGIN_X
-    mark_w = 0.0035
-    fig.add_artist(
-        mpatches.Rectangle(
-            (mark_x, y_bot + 0.010),
-            mark_w,
-            y_top - y_bot - 0.020,
-            transform=fig.transFigure,
-            facecolor=theme.ACCENT,
-            edgecolor="none",
-            zorder=2,
-        )
-    )
-    fig.text(
-        mark_x + mark_w + 0.010,
-        y_top - 0.012,
-        _wrap(factor.effect, width=88),
-        fontsize=12,
-        color=theme.INK,
-        va="top",
-        linespacing=1.35,
-        family=theme.display_font(),
-        weight="regular",
-    )
 
 
 def _draw_overview(fig: plt.Figure, factor: Factor, y_top: float) -> None:
@@ -543,10 +581,12 @@ def render_page_one(
     """
     fig = theme.new_page()
     _draw_header(fig, factor, 1)
-    _draw_hero(fig, factor, clean)
-    _draw_pull_quote(fig, factor)
+    subtitle_bottom = _draw_hero(fig, factor, clean)
 
-    overview_top = 0.712 if factor.effect else 0.790
+    # Keep the original tuned start for short subtitles (≤2 lines) and only
+    # push the overview further down when a long subtitle would otherwise
+    # overlap it.
+    overview_top = min(0.790, subtitle_bottom - 0.024)
     _draw_overview(fig, factor, y_top=overview_top)
 
     _draw_section_eyebrow(
