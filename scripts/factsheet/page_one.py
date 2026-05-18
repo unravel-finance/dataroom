@@ -87,9 +87,13 @@ def _text_extent_frac(fig: plt.Figure, txt: plt.Text) -> tuple[float, float]:
     return bb.width / fig.bbox.width, bb.height / fig.bbox.height
 
 
-# Left edge of the top-right mini chart, minus a gutter — a long factor
-# name must not run past this into the chart.
-_TITLE_RIGHT_LIMIT = MARGIN_X + 0.55 * COL_WIDTH - 0.025
+# Left edge of the top-right mini chart's axes box.
+_CHART_LEFT = MARGIN_X + 0.55 * COL_WIDTH
+# The chart's y-axis tick labels (e.g. "-5.0") render to the LEFT of that
+# box, so the title must stop well short of _CHART_LEFT — reserve room for
+# those labels plus a clear visual gap, or a long title looks like it's
+# touching the chart even though it technically clears the axes.
+_TITLE_RIGHT_LIMIT = _CHART_LEFT - 0.06
 _TITLE_X = MARGIN_X - 0.001
 _TITLE_TOP = 0.908
 _TITLE_BASE = 36.0
@@ -197,8 +201,8 @@ def _draw_top_right_quantile_bars(fig: plt.Figure, clean: pd.DataFrame) -> None:
     values = mean_q[period].values * 1e4  # → bps
     quantiles = list(mean_q.index)
 
-    spark_left = MARGIN_X + 0.55 * COL_WIDTH
-    spark_w = COL_WIDTH - 0.55 * COL_WIDTH
+    spark_left = _CHART_LEFT
+    spark_w = RIGHT_X - _CHART_LEFT
     spark_bottom = 0.815
     spark_h = 0.085
 
