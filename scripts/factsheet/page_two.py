@@ -214,24 +214,27 @@ def _plot_mean_return_by_quantile(ax: plt.Axes, clean: pd.DataFrame) -> None:
     quantiles = list(mean_q.index)
     n_q = len(quantiles)
     n_p = len(periods)
-    bar_w = 0.8 / max(n_p, 1)
+    # Fill ~96% of each quantile slot so the bars use the available width.
+    group_w = 0.96
+    bar_w = group_w / max(n_p, 1)
     x_base = np.arange(n_q)
-    # Distinct colour per period — the reference uses tab10's first three;
-    # we use brand teal + warm accents to keep it on-palette.
-    period_colors = [theme.ACCENT, "#F59E0B", theme.BENCH][:n_p]
+    # Single colour scheme — three shades of grey (dark = shortest period).
+    grey_shades = [theme.INK, theme.MUTED, "#BDBDBD"][:n_p]
     for i, period in enumerate(periods):
         offset = (i - (n_p - 1) / 2) * bar_w
         ax.bar(
             x_base + offset,
             mean_q[period].values * 1e4,  # → bps
             width=bar_w,
-            color=period_colors[i],
+            color=grey_shades[i],
             edgecolor="none",
             label=str(period),
         )
     ax.axhline(0, color=theme.HAIR, linewidth=0.6)
     ax.set_xticks(x_base)
     ax.set_xticklabels([str(q) for q in quantiles])
+    ax.set_xlim(-0.5, n_q - 0.5)  # bars span the full panel width
+    ax.margins(y=0.02)
     ax.set_title(
         "Mean Forward Return by Quantile  ·  demeaned",
         loc="left",
@@ -282,6 +285,9 @@ def _plot_ic_with_stats(ax: plt.Axes, clean: pd.DataFrame) -> None:
     )
     ax.axhline(0, color=theme.HAIR, linewidth=0.6)
     ax.set_ylabel("IC")
+    # Fixed, symmetric scale so the chart reads consistently across factors
+    # and the daily-IC noise band doesn't dominate the panel.
+    ax.set_ylim(-0.3, 0.3)
     ax.grid(axis="y", linewidth=0.4, alpha=0.6)
     ax.legend(loc="upper right", fontsize=7)
     _strip_top_right(ax)

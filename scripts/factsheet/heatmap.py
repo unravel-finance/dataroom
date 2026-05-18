@@ -168,18 +168,18 @@ def render_monthly_heatmap(
                     txt,
                     ha="right",
                     va="center",
-                    fontsize=7.5,
+                    fontsize=6.0,
                     color=txt_color,
                 )
 
     ax_grid.set_xlim(-0.5, cols - 0.5)
     ax_grid.set_ylim(rows - 0.5, -0.5)  # origin upper
     ax_grid.set_xticks(range(cols))
-    ax_grid.set_xticklabels(grid.columns, fontsize=7.5, color=theme.MUTED)
+    ax_grid.set_xticklabels(grid.columns, fontsize=6.5, color=theme.MUTED)
     ax_grid.set_yticks(range(rows))
     # Drop the "20" prefix on year labels — repetitive after the first row.
     ax_grid.set_yticklabels(
-        [f"’{y % 100:02d}" for y in years], fontsize=8, color=theme.MUTED
+        [f"’{y % 100:02d}" for y in years], fontsize=6.5, color=theme.MUTED
     )
     ax_grid.tick_params(axis="both", which="both", length=0)
     ax_grid.grid(False)
@@ -217,7 +217,7 @@ def render_monthly_heatmap(
             _fmt_cell(value),
             ha="right",
             va="center",
-            fontsize=8,
+            fontsize=6.5,
             weight="bold",
             color=text_color,
         )
@@ -225,7 +225,7 @@ def render_monthly_heatmap(
     ax_ytd.set_xlim(-0.5, 0.5)
     ax_ytd.set_ylim(rows - 0.5, -0.5)
     ax_ytd.set_xticks([0])
-    ax_ytd.set_xticklabels([YTD_COL_LABEL], fontsize=7.5, color=theme.MUTED, weight="medium")
+    ax_ytd.set_xticklabels([YTD_COL_LABEL], fontsize=6.5, color=theme.MUTED, weight="medium")
     ax_ytd.set_yticks([])
     ax_ytd.tick_params(axis="both", which="both", length=0)
     ax_ytd.grid(False)

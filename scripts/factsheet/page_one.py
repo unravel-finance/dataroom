@@ -29,7 +29,6 @@ import pandas as pd
 
 from scripts.factors_catalog import Factor
 from scripts.factsheet import metrics, theme
-from scripts.factsheet.al_utils import quantile_palette
 from scripts.factsheet.heatmap import render_monthly_heatmap
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -151,7 +150,6 @@ def _draw_top_right_quantile_bars(fig: plt.Figure, clean: pd.DataFrame) -> None:
     period = "1D" if "1D" in mean_q.columns else mean_q.columns[0]
     values = mean_q[period].values * 1e4  # → bps
     quantiles = list(mean_q.index)
-    colors = quantile_palette(len(quantiles))
 
     spark_left = MARGIN_X + 0.66 * COL_WIDTH
     spark_w = COL_WIDTH - 0.66 * COL_WIDTH
@@ -170,12 +168,16 @@ def _draw_top_right_quantile_bars(fig: plt.Figure, clean: pd.DataFrame) -> None:
     )
     ax = fig.add_axes((spark_left, spark_bottom, spark_w, spark_h))
     ax.bar(
-        [str(q) for q in quantiles],
+        range(len(quantiles)),
         values,
-        color=colors,
+        color=theme.MUTED,
         edgecolor="none",
-        width=0.78,
+        width=0.92,
     )
+    ax.set_xticks(range(len(quantiles)))
+    ax.set_xticklabels([str(q) for q in quantiles])
+    ax.set_xlim(-0.5, len(quantiles) - 0.5)  # bars fill the panel width
+    ax.margins(y=0.05)
     ax.axhline(0, color=theme.HAIR, linewidth=0.5)
     ax.tick_params(axis="x", which="both", length=0, labelsize=6.5, colors=theme.MUTED, pad=1)
     ax.tick_params(axis="y", which="both", length=0, labelsize=6.0, colors=theme.MUTED)
@@ -621,10 +623,10 @@ def render_page_one(
         ),
     )
 
-    # Monthly returns heatmap
+    # Monthly returns heatmap — half the previous vertical size
     fig.text(
         MARGIN_X,
-        0.450,
+        0.460,
         "MONTHLY RETURNS",
         fontsize=7,
         color=theme.MUTED,
@@ -634,26 +636,26 @@ def render_page_one(
     render_monthly_heatmap(
         fig,
         returns,
-        rect=(MARGIN_X, 0.300, COL_WIDTH, 0.140),
+        rect=(MARGIN_X, 0.385, COL_WIDTH, 0.070),
         title="",
     )
 
     # Risk & return KPI strip
     fig.text(
         MARGIN_X,
-        0.282,
+        0.358,
         "RISK & RETURN",
         fontsize=7,
         color=theme.MUTED,
         weight="semibold",
         va="top",
     )
-    _draw_kpi_strip(fig, stats, y=0.205)
+    _draw_kpi_strip(fig, stats, y=0.284)
 
-    # Cumulative return — full width below the KPI strip
+    # Cumulative return — full width, double the previous vertical height
     fig.text(
         MARGIN_X,
-        0.187,
+        0.262,
         "CUMULATIVE RETURN",
         fontsize=7,
         color=theme.MUTED,
@@ -661,7 +663,7 @@ def render_page_one(
         va="top",
     )
     _draw_cumulative_chart(
-        fig, returns, rect=(MARGIN_X, 0.115, COL_WIDTH, 0.062)
+        fig, returns, rect=(MARGIN_X, 0.128, COL_WIDTH, 0.124)
     )
 
     _draw_disclaimer_and_footer(fig, factor)
