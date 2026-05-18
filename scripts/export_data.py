@@ -81,11 +81,17 @@ def export_returns(factor: Factor, api_key: str) -> Path:
 
 
 def export_factor_data(factor: Factor, api_key: str) -> Path:
-    """Save the raw historical factor data (per-ticker time series) as a CSV."""
+    """Save the raw historical factor data (per-ticker time series) as a CSV.
+
+    Exported on the *full, unconstrained* universe (every ticker the factor
+    spans), not the Top-N portfolio universe — the data-room CSV is meant to
+    show the complete factor, while the factsheet's AlphaLens analysis pins
+    to the rolling Top-N separately.
+    """
     tickers = get_tickers(
         id=factor.portfolio_id.split(".")[0],
         api_key=api_key,
-        universe_size=factor.default_universe,
+        universe_size="full",
         exchange=None,
     )
     factor_data: pd.DataFrame = get_portfolio_factors_historical(

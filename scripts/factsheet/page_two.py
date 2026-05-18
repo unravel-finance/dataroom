@@ -103,7 +103,7 @@ def _draw_header(fig: plt.Figure, factor: Factor) -> None:
         RIGHT_X - csv_btn_w,
         0.874,
         csv_btn_w,
-        "Download factor data (CSV)",
+        "Download Factor Data (CSV)",
         factor.factor_data_csv_url,
         primary=False,
         height=csv_btn_h,

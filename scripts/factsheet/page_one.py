@@ -318,7 +318,7 @@ def _draw_section_eyebrow(
         # the right margin even on factors with long universe descriptions.
         fig.text(
             MARGIN_X,
-            y - 0.013,
+            y - 0.024,
             _wrap(sub_label, width=140),
             fontsize=7.5,
             color=theme.MUTED,
@@ -601,9 +601,9 @@ def render_page_one(
         y=0.520,
         label=f"Example Top {factor.default_universe} cross-sectional portfolio",
         sub_label=(
-            "Long and short the full Top "
-            f"{factor.default_universe} universe, with position sizes "
-            "scaled by the factor's cross-sectional strength. "
+            "Long and short the dynamic, rolling Top "
+            f"{factor.default_universe} universe (point-in-time), "
+            "sized by the factor's cross-sectional strength. "
             "Rebalanced daily."
         ),
     )
@@ -614,12 +614,12 @@ def render_page_one(
     draw_link_button(
         fig,
         RIGHT_X - ret_btn_w,
-        0.510,
+        0.512,
         ret_btn_w,
-        "Download returns (CSV)",
+        "Download Returns (CSV)",
         factor.returns_csv_url,
         primary=False,
-        height=0.019,
+        height=0.018,
         fontsize=7,
     )
 
