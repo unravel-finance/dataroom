@@ -30,6 +30,7 @@ import pandas as pd
 
 from scripts.factors_catalog import Factor
 from scripts.factsheet import metrics, theme
+from scripts.factsheet.buttons import draw_link_button
 from scripts.factsheet.justify import _render_justified_block
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -597,6 +598,20 @@ def render_page_one(
             "scaled by the factor's cross-sectional strength. "
             "Rebalanced daily."
         ),
+    )
+    # Secondary download — daily returns CSV for this illustrative portfolio.
+    # Sits at the right of the section header, just above its divider rule.
+    ret_btn_w = 0.20
+    draw_link_button(
+        fig,
+        RIGHT_X - ret_btn_w,
+        0.539,
+        ret_btn_w,
+        "Download returns (CSV)",
+        factor.returns_csv_url,
+        primary=False,
+        height=0.020,
+        fontsize=7,
     )
 
     # Performance + risk tabular bands (replace the heatmap & KPI strip)
