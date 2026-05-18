@@ -32,8 +32,8 @@ This repository provides transparent, easy-to-understand code examples for:
 - **`notebooks/factor_returns_correlation.{py,ipynb}`**: cross-sectional
   returns correlation across every catalog portfolio
 
-The `notebooks/` tree is generated from
-[`factsheet-content/factors.yaml`](factsheet-content/factors.yaml) by
+The `notebooks/` tree is generated from the factor catalog in
+[`scripts/factors_catalog.py`](scripts/factors_catalog.py) by
 `scripts/generate_factor_notebooks.py`. The **Generate Notebooks** GitHub
 Actions workflow regenerates and executes them (so the committed `.ipynb`
 files carry real outputs) on a weekly schedule, on manual dispatch, and
