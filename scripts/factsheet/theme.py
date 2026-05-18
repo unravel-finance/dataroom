@@ -1,9 +1,9 @@
 """Visual theme for the Unravel factsheet PDFs.
 
 Anchors on the unravel.finance brand (apps/web/styles/shadcn-ui.css):
-near-black neutral-950 ink on white, Mona Sans family, and a teal-600 chart
-accent. We fall back to Inter / DejaVu only if Mona Sans isn't installed on
-the build host.
+near-black neutral-950 ink on white, Mona Sans family, and the site's
+periwinkle accent. We fall back to Inter / DejaVu only if Mona Sans isn't
+installed on the build host.
 """
 
 from __future__ import annotations
@@ -22,9 +22,9 @@ HAIR = "#E5E5E5"       # neutral-200 — hairline rules
 HAIR_SOFT = "#F5F5F5"  # neutral-100 — empty / disabled cells
 BG = "#FFFFFF"
 PANEL = "#FAFAFA"      # neutral-50 — stat cards
-ACCENT = "#0D9488"     # teal-600 (chart-2). The brand accent. Use sparingly.
-ACCENT_SOFT = "#CCFBF1"  # teal-100
-ACCENT_TINT = "#F0FDFA"  # teal-50 — cell tint for YTD positives
+ACCENT = "#6075B4"     # unravel.finance site accent (periwinkle). Use sparingly.
+ACCENT_SOFT = "#C8D2E8"  # periwinkle-200 — light tint
+ACCENT_TINT = "#EEF1F8"  # periwinkle-50 — cell tint for YTD positives
 NEG = "#B91C1C"        # red-700 — drawdown / negative
 NEG_TINT = "#FEF2F2"   # red-50 — cell tint for YTD negatives
 BENCH = "#A3A3A3"      # neutral-400 — benchmark / passive series
