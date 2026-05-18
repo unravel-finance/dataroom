@@ -40,6 +40,12 @@ permissions:
   contents: write
   pull-requests: write
 
+# A newer push to the same ref supersedes any in-flight run (the pipeline is
+# idempotent and a full run is long).
+concurrency:
+  group: generate-notebooks-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   generate:
     name: Generate & execute factor notebooks
