@@ -23,15 +23,18 @@ SRC_DIR = NOTEBOOKS_DIR / "src"
 # 00_ prefix sorts the cross-factor overview above every factor_analysis_*.
 CORRELATION_STEM = "00_factor_returns_correlation"
 
-# Resolves `import analysis` / `scripts.factors_catalog` from wherever the
-# notebook runs (notebooks/ under Jupyter, repo root under nbconvert).
+# Resolves `import analysis` (package now lives in notebooks/) and
+# `scripts.factors_catalog` from wherever the notebook runs (notebooks/
+# under Jupyter, repo root under nbconvert) -- put both the repo root and
+# notebooks/ on sys.path.
 _PATH_BOOTSTRAP = '''import sys
 from pathlib import Path
 
-_repo_root = Path.cwd()
-while not (_repo_root / "analysis").is_dir() and _repo_root != _repo_root.parent:
-    _repo_root = _repo_root.parent
-sys.path.insert(0, str(_repo_root))
+_root = Path.cwd()
+while not (_root / "notebooks" / "analysis").is_dir() and _root != _root.parent:
+    _root = _root.parent
+for _p in (_root, _root / "notebooks"):
+    sys.path.insert(0, str(_p))
 '''
 
 _GENERATED_BANNER = (
