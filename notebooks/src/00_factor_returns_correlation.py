@@ -1,4 +1,13 @@
 # %%
+# AUTO-GENERATED from scripts/factors_catalog.py by
+# scripts/generate_factor_notebooks.py -- do not edit by hand.
+import sys
+from pathlib import Path
+
+_repo_root = Path.cwd()
+while not (_repo_root / "analysis").is_dir() and _repo_root != _repo_root.parent:
+    _repo_root = _repo_root.parent
+sys.path.insert(0, str(_repo_root))
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -6,20 +15,11 @@ import seaborn as sns
 from unravel_client import get_portfolio_returns
 
 from analysis.utils import get_env
+from scripts.factors_catalog import load_factors
 
 UNRAVEL_API_KEY = get_env("UNRAVEL_API_KEY")
 
-portfolios = [
-    "polaris.40",
-    "carry_enhanced.40",
-    "retail_flow.40",
-    "altair.40",
-    "margin_risk.40",
-    "relative_illiquidity.40",
-    "mean_reversion.40",
-    "mean_reversion_enhanced.40",
-    "margin_risk.40",
-]
+portfolios = [factor.portfolio_id for factor in load_factors()]
 
 returns_df = pd.DataFrame(
     {
@@ -32,14 +32,14 @@ returns_df = pd.DataFrame(
 
 correlation_matrix = returns_df.corr()
 
-plt.figure(figsize=(8, 6))
+plt.figure(figsize=(16, 13))
 sns.heatmap(
     correlation_matrix,
     annot=True,
     cmap="coolwarm",
     center=0,
     square=True,
-    fmt=".3f",
+    fmt=".2f",
     cbar_kws={"shrink": 0.8},
 )
 plt.title("Cross-Sectional Returns Correlation Matrix")
