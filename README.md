@@ -1,4 +1,5 @@
-<img width="1584" height="396" alt="github-cover" src=".github/cover.png" />
+<img width="1584" height="396" alt="github-cover" src="https://github.com/user-attachments/assets/9edced71-da4f-422a-b183-82a0de93e58d" />
+
 
 # Dataroom
 
