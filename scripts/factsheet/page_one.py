@@ -388,9 +388,12 @@ def _draw_table_band(
                 cx, header_y, hdr, fontsize=6.5, color=theme.MUTED,
                 ha="center", va="top",
             )
+            # Body Mona Sans (not the Expanded display cut) at semibold:
+            # the wide display face is hard to read for dense numerics and
+            # doesn't column-align; semibold keeps the figures prominent.
             fig.text(
                 cx, value_y, val, fontsize=9, color=theme.INK,
-                ha="center", va="center", family=theme.display_font(),
+                ha="center", va="center", weight="semibold",
             )
         fig.add_artist(
             plt.Line2D([x, x + gw], [rule2_y, rule2_y], color=theme.HAIR, linewidth=0.6)
