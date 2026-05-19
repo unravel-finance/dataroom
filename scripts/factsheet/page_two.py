@@ -19,6 +19,7 @@ import matplotlib.ticker as mtick
 import numpy as np
 import pandas as pd
 from matplotlib.gridspec import GridSpec
+from matplotlib.transforms import Bbox
 
 from scripts.factors_catalog import BOOKING_URL, Factor
 from scripts.factsheet import metrics, theme
@@ -563,3 +564,41 @@ def render_page_two(
 
     _draw_about_and_notice(fig, factor)
     return fig
+
+
+def charts_bbox(fig: plt.Figure) -> Bbox | None:
+    """Tight bounding box (in inches) around just the analysis charts.
+
+    The page-2 figure doubles as the web resource-card thumbnail, but the
+    full A4 page — header, intro copy and the long legal notice — renders
+    far taller than the notebook-derived cards beside it on the site.
+    Cropping to the GridSpec subplots (titles and tick labels included,
+    header/footer excluded) brings it to a comparable aspect ratio.
+
+    Returns None when the page has no chart subplots (e.g. the
+    unavailable-analysis fallback), so callers can fall back to the full
+    figure. The logo is added via ``fig.add_axes`` and has no
+    subplotspec, so it is naturally excluded.
+    """
+    chart_axes = [
+        ax for ax in fig.get_axes() if ax.get_subplotspec() is not None
+    ]
+    if not chart_axes:
+        return None
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    boxes = [
+        bb
+        for ax in chart_axes
+        if (bb := ax.get_tightbbox(renderer)) is not None
+    ]
+    if not boxes:
+        return None
+    bb_in = Bbox.union(boxes).transformed(fig.dpi_scale_trans.inverted())
+    pad = 0.12  # inches — small breathing room around the chart cluster
+    return Bbox.from_extents(
+        bb_in.x0 - pad,
+        bb_in.y0 - pad,
+        bb_in.x1 + pad,
+        bb_in.y1 + pad,
+    )
