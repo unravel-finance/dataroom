@@ -7,9 +7,8 @@ API: per-factor analysis, portfolio backtesting, and live weights.
 
 - **Factor analysis** — one notebook per single-factor portfolio, plus a
   cross-factor correlation overview ([jump to the table](#factor-analysis-notebooks))
-- **`replicate_portfolio_backtest.ipynb`** — transparent backtest with
-  transaction costs against historical portfolio weights
-- **`get_live_weights.ipynb`** — current portfolio allocations
+- **Portfolio examples** — adaptive portfolios, multi-factor construction,
+  backtest replication, and live weights ([jump to the table](#other-notebooks))
 
 ## Setup
 
@@ -58,12 +57,19 @@ AlphaLens notebook, and the underlying data:
 | [Momentum](https://unravel.finance/portfolio/momentum.40?exchange=unconstrained) | [PDF](https://github.com/unravel-finance/api-guide/blob/main/factsheets/momentum.pdf) | [notebook](notebooks/factor_analysis_momentum.ipynb) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/raw-factors/momentum.csv) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/portfolio-40-returns/momentum.csv) |
 <!-- END FACTOR TABLE -->
 
-## Other Examples
+## Other Notebooks
 
-```bash
-jupyter notebook replicate_portfolio_backtest.ipynb   # backtest a portfolio
-jupyter notebook get_live_weights.ipynb               # current allocations
-```
+End-to-end portfolio examples. Each notebook is committed pre-rendered, so
+GitHub displays it in your browser — just click a **Notebook** link. To run
+or modify one, complete [Setup](#setup) then open it in Jupyter, e.g.
+`jupyter notebook notebooks/00_replicate_portfolio_backtest.ipynb`.
+
+| Notebook | Source | Description |
+| --- | --- | --- |
+| [Adaptive Portfolios](notebooks/00_adaptive-portfolios.ipynb) | — | Replicate Unravel's risk-targeted Adaptive portfolios through the Unravel API |
+| [Multi-Factor Portfolio Construction](notebooks/00_multi_factor_portfolio_construction.ipynb) | — | Combine several single-factor portfolios into one diversified multi-factor allocation |
+| [Replicate Portfolio Backtest](notebooks/00_replicate_portfolio_backtest.ipynb) | [.py](notebooks/src/00_replicate_portfolio_backtest.py) | Transparent backtest with transaction costs against a portfolio's historical weights |
+| [Get Live Weights](notebooks/00_get_live_weights.ipynb) | [.py](notebooks/src/00_get_live_weights.py) | Fetch a portfolio's current live allocations from the Unravel API |
 
 For the full list of portfolios and parameters, see the
 [Unravel catalog](https://unravel.finance/portfolios).
