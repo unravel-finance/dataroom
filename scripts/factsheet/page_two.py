@@ -22,12 +22,8 @@ from matplotlib.gridspec import GridSpec
 
 from scripts.factors_catalog import BOOKING_URL, Factor
 from scripts.factsheet import metrics, theme
-from scripts.factsheet.al_utils import (
-    accent_ramp,
-    clean_factor_data,
-    quantile_palette,
-)
-from scripts.factsheet.branding import draw_brand
+from scripts.factsheet.al_utils import clean_factor_data
+from scripts.factsheet.branding import accent_ramp, draw_brand, quantile_palette
 from scripts.factsheet.buttons import BTN_H, draw_link_button
 from scripts.factsheet.justify import _render_justified_block
 

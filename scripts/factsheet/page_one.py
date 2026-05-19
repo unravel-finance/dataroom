@@ -1,4 +1,4 @@
-"""Page 1 — narrative + monthly returns heatmap + KPI strip + cumulative chart.
+"""Page 1 — narrative + performance/risk tables + cumulative chart.
 
 Hierarchy (top → bottom):
 
@@ -6,8 +6,8 @@ Hierarchy (top → bottom):
     title  ·  subtitle                                        | quantile-alpha bars
     overview (2-col, justified)
     EXAMPLE TOP N CROSS-SECTIONAL PORTFOLIO
-        MONTHLY RETURNS    · monthly heatmap
-        RISK & RETURN      · KPI strip
+        PERFORMANCE        · gross-return + annual tables
+        RISK & RETURN      · volatility / return-to-risk / max drawdown
         CUMULATIVE RETURN  · full-width equity curve
     italic disclaimer + About Unravel paragraph
     URL  ·  page indicator
@@ -27,8 +27,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from scripts.factors_catalog import Factor
 from scripts.factsheet import metrics, theme
-from scripts.factsheet.al_utils import accent_by_magnitude
-from scripts.factsheet.branding import draw_brand
+from scripts.factsheet.branding import accent_by_magnitude, draw_brand
 from scripts.factsheet.buttons import draw_link_button
 from scripts.factsheet.justify import _render_justified_block
 

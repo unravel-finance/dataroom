@@ -1,20 +1,5 @@
 name: Generate Factsheets
 
-# Pulls the latest portfolio returns + raw factor data for every single-factor
-# portfolio, regenerates the two-page PDF factsheets, and publishes the
-# refreshed artefacts. Used to populate the DocSend dataroom for the Unravel
-# sales pipeline.
-#
-# Delivery depends on the trigger:
-#   • schedule / workflow_dispatch → opens a PR into `main` with the refreshed
-#     data/ + factsheets/ trees, for a human to review (the steady-state cadence).
-#   • push to the setup branch → commits straight back to that branch, so we
-#     can iterate on the factsheet design quickly before merging to main.
-#
-# NOTE: the weekly `schedule:` trigger only fires from the copy of this file
-# on the default branch — it will not run until this workflow is merged to
-# main. TEMPORARY: remove the `push:` trigger (and this note) before merging.
-
 on:
   workflow_dispatch:
     inputs:
@@ -58,8 +43,11 @@ jobs:
           python-version: '3.12'
           cache: pip
 
-      # Inter is the body/display font for the factsheet. Without it the PDF
-      # falls back to DejaVu, which reads as "designed by an engineer".
+      # Mona Sans is the factsheet's brand font — its .ttf cuts are bundled
+      # in scripts/factsheet/assets/fonts/ and registered at render time, so
+      # that's what the PDF actually uses. Inter is only a defensive fallback
+      # if those bundled cuts fail to load; without any of them the PDF
+      # drops to DejaVu, which reads as "designed by an engineer".
       - name: Install Inter font
         run: sudo apt-get update && sudo apt-get install -y fonts-inter
 
@@ -108,9 +96,6 @@ jobs:
             factsheets
           if-no-files-found: error
 
-      # --- delivery -------------------------------------------------------
-
-      # Fast iteration loop: push to the setup branch commits straight back.
       - name: Commit refreshed data back to the branch
         if: ${{ github.event_name == 'push' && github.event.inputs.skip_commit != 'true' }}
         run: |
@@ -131,8 +116,6 @@ jobs:
           Triggered by: ${GITHUB_ACTOR}"
           git push origin "HEAD:${GITHUB_REF_NAME}"
 
-      # Steady state: scheduled / manual runs open a PR into main for a human
-      # to review the regenerated artefact diff and merge.
       - name: Open PR with refreshed data
         if: ${{ github.event_name != 'push' && github.event.inputs.skip_commit != 'true' }}
         uses: peter-evans/create-pull-request@v6
