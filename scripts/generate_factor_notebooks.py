@@ -142,41 +142,33 @@ def _write(path: Path, content: str) -> None:
     print(f"  wrote {path.relative_to(REPO_ROOT)}")
 
 
-def _readme(factors: list[Factor]) -> str:
-    def factsheet(f: Factor) -> str:
-        return f"{GITHUB_BLOB_BASE}/factsheets/{f.id}.pdf"
+README = REPO_ROOT / "README.md"
+_TABLE_BEGIN = "<!-- BEGIN FACTOR TABLE"
+_TABLE_END = "<!-- END FACTOR TABLE -->"
 
+
+def _factor_table(factors: list[Factor]) -> str:
     rows = "\n".join(
         f"| [{f.name}]({f.detail_url}) "
-        f"| [PDF]({factsheet(f)}) "
-        f"| [notebook](factor_analysis_{f.id}.ipynb) "
+        f"| [PDF]({GITHUB_BLOB_BASE}/factsheets/{f.id}.pdf) "
+        f"| [notebook](notebooks/factor_analysis_{f.id}.ipynb) "
         f"| [CSV]({f.factor_data_csv_url}) "
         f"| [CSV]({f.returns_csv_url}) |"
         for f in factors
     )
     return (
-        "# Unravel Factor Analysis Notebooks\n\n"
-        "[AlphaLens](https://github.com/stefan-jansen/alphalens-reloaded) "
-        "factor analysis for every Unravel single-factor portfolio, evaluated "
-        "on the **dynamic, point-in-time universe** each portfolio actually "
-        "trades.\n\n"
-        "GitHub renders every notebook in your browser — just click one. To "
-        "run or modify a notebook yourself:\n\n"
-        "1. `pip install -r requirements.txt`\n"
-        "2. Set your API key: `export UNRAVEL_API_KEY=…` (or put it in a "
-        "`.env` file)\n"
-        "3. Open it in Jupyter, e.g. "
-        "`jupyter notebook notebooks/factor_analysis_altair.ipynb`\n\n"
-        f"## Start here — [cross-factor returns correlation]({CORRELATION_STEM}.ipynb)\n\n"
-        "A correlation heatmap across every portfolio's returns: the "
-        "big-picture view of how the factors relate.\n\n"
-        "## Per-factor analysis\n\n"
-        "Each factor below links to its portfolio page, one-page PDF "
-        "factsheet, the AlphaLens notebook, and the underlying data.\n\n"
         "| Factor | Factsheet | Notebook | Raw factor data | Portfolio returns |\n"
         "| --- | --- | --- | --- | --- |\n"
-        f"{rows}\n"
+        f"{rows}"
     )
+
+
+def update_root_readme(factors: list[Factor]) -> None:
+    text = README.read_text()
+    begin_eol = text.index("\n", text.index(_TABLE_BEGIN)) + 1
+    end = text.index(_TABLE_END, begin_eol)
+    README.write_text(text[:begin_eol] + _factor_table(factors) + "\n" + text[end:])
+    print("  updated README.md factor table")
 
 
 def write_scripts(factors: list[Factor]) -> list[Path]:
@@ -198,7 +190,7 @@ def write_scripts(factors: list[Factor]) -> list[Path]:
         )
         written.append(path)
 
-    # The correlation notebook and README index always cover the full
+    # The correlation notebook and the README table always cover the full
     # catalog, regardless of any per-factor subset passed on argv.
     corr_path = SRC_DIR / f"{CORRELATION_STEM}.py"
     _write(
@@ -210,7 +202,7 @@ def write_scripts(factors: list[Factor]) -> list[Path]:
     )
     written.append(corr_path)
 
-    _write(NOTEBOOKS_DIR / "README.md", _readme(load_factors()))
+    update_root_readme(load_factors())
     return written
 
 
