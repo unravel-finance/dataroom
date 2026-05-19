@@ -1,13 +1,7 @@
 """Single-factor portfolio catalog for the data-room CSV/PDF exports.
 
-The narrative copy mirrors `apps/alpha/config/portfolios.config.ts` in the
-unravel-router repo — that file is the source of truth; keep this in sync
-manually until extraction is automated.
-
-Defined as a typed Python list rather than a YAML side-file: this catalog is
-engineer-maintained and only ever read by the export / factsheet scripts (the
-CI workflow passes factor *ids*, never parses the catalog itself), so a YAML
-parser + schema added indirection without buying anything.
+Narrative copy mirrors apps/alpha/config/portfolios.config.ts in
+unravel-router (the source of truth); keep in sync manually.
 """
 
 from __future__ import annotations
@@ -17,20 +11,15 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SITE_BASE_URL = "https://unravel.finance"
-
-# Book-a-call CTA — mirrors the `/booking` route used across the site
-# (see nav.config.tsx in unravel-router, the source of truth for site links).
 BOOKING_URL = f"{SITE_BASE_URL}/booking"
 
-# Notebooks live at the repo root as factor_analysis_<id>.ipynb, but only for
-# a subset of factors. When a factor-specific notebook isn't committed we fall
-# back to the generic backtest-replication notebook, which works for any
-# factor — so the factsheet's "replication notebook" link is never dead.
 GITHUB_BLOB_BASE = "https://github.com/unravel-finance/api-guide/blob/main"
-# CSV artefacts are referenced via raw GitHub URLs (the same convention the
-# Unravel Alpha web app uses — see README "Sales Data-Room Pipeline").
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/unravel-finance/api-guide/main"
+# Factors without a committed factor_analysis_<id>.ipynb fall back to this.
 _GENERIC_NOTEBOOK = "replicate_portfolio_backtest.ipynb"
+
+# Excluded from all generation (CSV export + factsheets).
+_EXCLUDED_IDS: frozenset[str] = frozenset({"trend_longonly_adaptive"})
 
 
 @dataclass(frozen=True)
@@ -41,8 +30,6 @@ class Factor:
     default_universe: str
     short_description: str
     long_description: str
-    # Optional taxonomy / sales copy — drives the page 1 hero. Falls back to
-    # safe defaults when absent so older catalog entries still render.
     category: str = ""
     badges: tuple[str, ...] = ()
     effect: str = ""
@@ -56,23 +43,18 @@ class Factor:
 
     @property
     def returns_csv_url(self) -> str:
-        """Raw GitHub link to the published daily-returns CSV."""
         return f"{GITHUB_RAW_BASE}/data/portfolio-40-returns/{self.id}.csv"
 
     @property
     def factor_data_csv_url(self) -> str:
-        """Raw GitHub link to the published raw factor-data CSV."""
         return f"{GITHUB_RAW_BASE}/data/raw-factors/{self.id}.csv"
 
     @property
     def has_factor_notebook(self) -> bool:
-        """True when a factor-specific replication notebook is committed."""
         return (REPO_ROOT / f"factor_analysis_{self.id}.ipynb").exists()
 
     @property
     def notebook_url(self) -> str:
-        """GitHub link to the replication notebook — the factor-specific one
-        if it exists, otherwise the generic backtest-replication notebook."""
         name = (
             f"factor_analysis_{self.id}.ipynb"
             if self.has_factor_notebook
@@ -370,14 +352,9 @@ _FACTORS: list[Factor] = [
     ),
 ]
 
-# Factors excluded from generation/export (kept in the catalog for
-# reference). trend_longonly_adaptive: sparse long-only signal, not useful
-# as a cross-sectional factor analysis.
-BLACKLIST: set[str] = {"trend_longonly_adaptive"}
-
 
 def load_factors() -> list[Factor]:
-    return [f for f in _FACTORS if f.id not in BLACKLIST]
+    return [f for f in _FACTORS if f.id not in _EXCLUDED_IDS]
 
 
 def find_factor(factor_id: str) -> Factor:
