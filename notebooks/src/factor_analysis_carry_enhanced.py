@@ -4,10 +4,11 @@
 import sys
 from pathlib import Path
 
-_repo_root = Path.cwd()
-while not (_repo_root / "analysis").is_dir() and _repo_root != _repo_root.parent:
-    _repo_root = _repo_root.parent
-sys.path.insert(0, str(_repo_root))
+_root = Path.cwd()
+while not (_root / "notebooks" / "analysis").is_dir() and _root != _root.parent:
+    _root = _root.parent
+for _p in (_root, _root / "notebooks"):
+    sys.path.insert(0, str(_p))
 
 from unravel_client import (
     get_historical_universe,
