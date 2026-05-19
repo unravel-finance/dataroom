@@ -15,7 +15,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from scripts.factors_catalog import Factor, load_factors
+from scripts.factors_catalog import GITHUB_BLOB_BASE, Factor, load_factors
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 NOTEBOOKS_DIR = REPO_ROOT / "notebooks"
@@ -143,28 +143,39 @@ def _write(path: Path, content: str) -> None:
 
 
 def _readme(factors: list[Factor]) -> str:
+    def factsheet(f: Factor) -> str:
+        return f"{GITHUB_BLOB_BASE}/factsheets/{f.id}.pdf"
+
     rows = "\n".join(
-        f"| [{f.name}](factor_analysis_{f.id}.ipynb) "
-        f"| {f.category or '—'} "
-        f"| {f.short_description} |"
+        f"| [{f.name}]({f.detail_url}) "
+        f"| [PDF]({factsheet(f)}) "
+        f"| [notebook](factor_analysis_{f.id}.ipynb) "
+        f"| [CSV]({f.factor_data_csv_url}) "
+        f"| [CSV]({f.returns_csv_url}) |"
         for f in factors
     )
     return (
-        "<!-- AUTO-GENERATED from scripts/factors_catalog.py -- do not edit. -->\n\n"
-        "# Factor Analysis Notebooks\n\n"
-        "AlphaLens factor analysis for every Unravel single-factor portfolio, "
-        "run on the **dynamic, point-in-time universe** (not every ticker ever "
-        "tradeable). Open any notebook below — GitHub renders them inline.\n\n"
-        f"### [Cross-factor returns correlation]({CORRELATION_STEM}.ipynb)\n\n"
-        "Correlation heatmap across every portfolio's returns — start here for "
-        "the big picture.\n\n"
-        "### Per-factor analysis\n\n"
-        "| Factor | Category | What it captures |\n"
-        "| --- | --- | --- |\n"
-        f"{rows}\n\n"
-        "---\n\n"
-        "_The jupytext sources live in [`src/`](src/); the notebooks here are "
-        "generated and executed by the **Generate Notebooks** CI workflow._\n"
+        "# Unravel Factor Analysis Notebooks\n\n"
+        "[AlphaLens](https://github.com/stefan-jansen/alphalens-reloaded) "
+        "factor analysis for every Unravel single-factor portfolio, evaluated "
+        "on the **dynamic, point-in-time universe** each portfolio actually "
+        "trades.\n\n"
+        "GitHub renders every notebook in your browser — just click one. To "
+        "run or modify a notebook yourself:\n\n"
+        "1. `pip install -r requirements.txt`\n"
+        "2. Set your API key: `export UNRAVEL_API_KEY=…` (or put it in a "
+        "`.env` file)\n"
+        "3. Open it in Jupyter, e.g. "
+        "`jupyter notebook notebooks/factor_analysis_altair.ipynb`\n\n"
+        f"## Start here — [cross-factor returns correlation]({CORRELATION_STEM}.ipynb)\n\n"
+        "A correlation heatmap across every portfolio's returns: the "
+        "big-picture view of how the factors relate.\n\n"
+        "## Per-factor analysis\n\n"
+        "Each factor below links to its portfolio page, one-page PDF "
+        "factsheet, the AlphaLens notebook, and the underlying data.\n\n"
+        "| Factor | Factsheet | Notebook | Raw factor data | Portfolio returns |\n"
+        "| --- | --- | --- | --- | --- |\n"
+        f"{rows}\n"
     )
 
 

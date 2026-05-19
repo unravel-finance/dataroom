@@ -1,32 +1,34 @@
-<!-- AUTO-GENERATED from scripts/factors_catalog.py -- do not edit. -->
+# Unravel Factor Analysis Notebooks
 
-# Factor Analysis Notebooks
+[AlphaLens](https://github.com/stefan-jansen/alphalens-reloaded) factor analysis for every Unravel single-factor portfolio, evaluated on the **dynamic, point-in-time universe** each portfolio actually trades.
 
-AlphaLens factor analysis for every Unravel single-factor portfolio, run on the **dynamic, point-in-time universe** (not every ticker ever tradeable). Open any notebook below — GitHub renders them inline.
+GitHub renders every notebook in your browser — just click one. To run or modify a notebook yourself:
 
-### [Cross-factor returns correlation](00_factor_returns_correlation.ipynb)
+1. `pip install -r requirements.txt`
+2. Set your API key: `export UNRAVEL_API_KEY=…` (or put it in a `.env` file)
+3. Open it in Jupyter, e.g. `jupyter notebook notebooks/factor_analysis_altair.ipynb`
 
-Correlation heatmap across every portfolio's returns — start here for the big picture.
+## Start here — [cross-factor returns correlation](00_factor_returns_correlation.ipynb)
 
-### Per-factor analysis
+A correlation heatmap across every portfolio's returns: the big-picture view of how the factors relate.
 
-| Factor | Category | What it captures |
-| --- | --- | --- |
-| [Altair](factor_analysis_altair.ipynb) | Microstructure | Measures short-term liquidity dynamics, slippage and market order imbalances. |
-| [Margin Risk](factor_analysis_margin_risk.ipynb) | Derivatives Positioning | Assets with higher at-risk-of-liquidation positions tend to underperform less leveraged assets. |
-| [Retail Flow](factor_analysis_retail_flow.ipynb) | — | Quantifies retail money flow, positioning, and activity and systematically takes contrarian positions. |
-| [Enhanced Mean Reversion](factor_analysis_mean_reversion_enhanced.ipynb) | Statistical | Basket-based mean reversion signal diversified across time frames and transformations with enhanced conditioning for robustness. |
-| [Instantaneous Momentum](factor_analysis_instantaneous_momentum.ipynb) | Momentum | Proprietary measure of momentum — assets with higher instantaneous momentum tend to outperform. |
-| [Polaris](factor_analysis_polaris.ipynb) | Momentum | Proprietary measure of short-term, normalised momentum effects across crypto assets. |
-| [Relative Illiquidity](factor_analysis_relative_illiquidity.ipynb) | Liquidity | Captures the effect of assets with higher relative illiquidity tending to outperform. |
-| [Supply Velocity](factor_analysis_supply_velocity.ipynb) | Fundamental | Assets with lower inflation perform better than assets with higher inflation. |
-| [Enhanced Momentum](factor_analysis_momentum_enhanced.ipynb) | Momentum | Captures short-term momentum effects, measured by a wide range of proprietary methods. |
-| [Mean Reversion](factor_analysis_mean_reversion.ipynb) | Statistical | Basket-based mean reversion signal diversified across different windows to capture broad reversal dynamics. |
-| [Enhanced Carry](factor_analysis_carry_enhanced.ipynb) | Carry | Captures cross-sectional funding premium across a wide range of exchanges, exploiting funding imbalances. |
-| [Instantaneous Volatility](factor_analysis_instantaneous_volatility.ipynb) | Volatility | Proprietary measure of volatility — assets with higher instantaneous volatility tend to outperform in certain market conditions. |
-| [Open Interest Divergence](factor_analysis_open_interest_divergence.ipynb) | Derivatives Positioning | Quantifies open interest divergence and systematically takes positions, aiming to capitalise on behavioural inefficiencies. |
-| [Momentum](factor_analysis_momentum.ipynb) | Momentum | Captures short-term momentum opportunities, aiming for uncorrelated returns while minimising directional exposure. |
+## Per-factor analysis
 
----
+Each factor below links to its portfolio page, one-page PDF factsheet, the AlphaLens notebook, and the underlying data.
 
-_The jupytext sources live in [`src/`](src/); the notebooks here are generated and executed by the **Generate Notebooks** CI workflow._
+| Factor | Factsheet | Notebook | Raw factor data | Portfolio returns |
+| --- | --- | --- | --- | --- |
+| [Altair](https://unravel.finance/portfolio/altair.40?exchange=unconstrained) | [PDF](https://github.com/unravel-finance/api-guide/blob/main/factsheets/altair.pdf) | [notebook](factor_analysis_altair.ipynb) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/raw-factors/altair.csv) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/portfolio-40-returns/altair.csv) |
+| [Margin Risk](https://unravel.finance/portfolio/margin_risk.40?exchange=unconstrained) | [PDF](https://github.com/unravel-finance/api-guide/blob/main/factsheets/margin_risk.pdf) | [notebook](factor_analysis_margin_risk.ipynb) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/raw-factors/margin_risk.csv) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/portfolio-40-returns/margin_risk.csv) |
+| [Retail Flow](https://unravel.finance/portfolio/retail_flow.40?exchange=unconstrained) | [PDF](https://github.com/unravel-finance/api-guide/blob/main/factsheets/retail_flow.pdf) | [notebook](factor_analysis_retail_flow.ipynb) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/raw-factors/retail_flow.csv) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/portfolio-40-returns/retail_flow.csv) |
+| [Enhanced Mean Reversion](https://unravel.finance/portfolio/mean_reversion_enhanced.40?exchange=unconstrained) | [PDF](https://github.com/unravel-finance/api-guide/blob/main/factsheets/mean_reversion_enhanced.pdf) | [notebook](factor_analysis_mean_reversion_enhanced.ipynb) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/raw-factors/mean_reversion_enhanced.csv) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/portfolio-40-returns/mean_reversion_enhanced.csv) |
+| [Instantaneous Momentum](https://unravel.finance/portfolio/instantaneous_momentum.40?exchange=unconstrained) | [PDF](https://github.com/unravel-finance/api-guide/blob/main/factsheets/instantaneous_momentum.pdf) | [notebook](factor_analysis_instantaneous_momentum.ipynb) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/raw-factors/instantaneous_momentum.csv) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/portfolio-40-returns/instantaneous_momentum.csv) |
+| [Polaris](https://unravel.finance/portfolio/polaris.40?exchange=unconstrained) | [PDF](https://github.com/unravel-finance/api-guide/blob/main/factsheets/polaris.pdf) | [notebook](factor_analysis_polaris.ipynb) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/raw-factors/polaris.csv) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/portfolio-40-returns/polaris.csv) |
+| [Relative Illiquidity](https://unravel.finance/portfolio/relative_illiquidity.40?exchange=unconstrained) | [PDF](https://github.com/unravel-finance/api-guide/blob/main/factsheets/relative_illiquidity.pdf) | [notebook](factor_analysis_relative_illiquidity.ipynb) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/raw-factors/relative_illiquidity.csv) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/portfolio-40-returns/relative_illiquidity.csv) |
+| [Supply Velocity](https://unravel.finance/portfolio/supply_velocity.40?exchange=unconstrained) | [PDF](https://github.com/unravel-finance/api-guide/blob/main/factsheets/supply_velocity.pdf) | [notebook](factor_analysis_supply_velocity.ipynb) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/raw-factors/supply_velocity.csv) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/portfolio-40-returns/supply_velocity.csv) |
+| [Enhanced Momentum](https://unravel.finance/portfolio/momentum_enhanced.40?exchange=unconstrained) | [PDF](https://github.com/unravel-finance/api-guide/blob/main/factsheets/momentum_enhanced.pdf) | [notebook](factor_analysis_momentum_enhanced.ipynb) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/raw-factors/momentum_enhanced.csv) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/portfolio-40-returns/momentum_enhanced.csv) |
+| [Mean Reversion](https://unravel.finance/portfolio/mean_reversion.40?exchange=unconstrained) | [PDF](https://github.com/unravel-finance/api-guide/blob/main/factsheets/mean_reversion.pdf) | [notebook](factor_analysis_mean_reversion.ipynb) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/raw-factors/mean_reversion.csv) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/portfolio-40-returns/mean_reversion.csv) |
+| [Enhanced Carry](https://unravel.finance/portfolio/carry_enhanced.40?exchange=unconstrained) | [PDF](https://github.com/unravel-finance/api-guide/blob/main/factsheets/carry_enhanced.pdf) | [notebook](factor_analysis_carry_enhanced.ipynb) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/raw-factors/carry_enhanced.csv) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/portfolio-40-returns/carry_enhanced.csv) |
+| [Instantaneous Volatility](https://unravel.finance/portfolio/instantaneous_volatility.40?exchange=unconstrained) | [PDF](https://github.com/unravel-finance/api-guide/blob/main/factsheets/instantaneous_volatility.pdf) | [notebook](factor_analysis_instantaneous_volatility.ipynb) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/raw-factors/instantaneous_volatility.csv) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/portfolio-40-returns/instantaneous_volatility.csv) |
+| [Open Interest Divergence](https://unravel.finance/portfolio/open_interest_divergence.40?exchange=unconstrained) | [PDF](https://github.com/unravel-finance/api-guide/blob/main/factsheets/open_interest_divergence.pdf) | [notebook](factor_analysis_open_interest_divergence.ipynb) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/raw-factors/open_interest_divergence.csv) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/portfolio-40-returns/open_interest_divergence.csv) |
+| [Momentum](https://unravel.finance/portfolio/momentum.40?exchange=unconstrained) | [PDF](https://github.com/unravel-finance/api-guide/blob/main/factsheets/momentum.pdf) | [notebook](factor_analysis_momentum.ipynb) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/raw-factors/momentum.csv) | [CSV](https://raw.githubusercontent.com/unravel-finance/api-guide/main/data/portfolio-40-returns/momentum.csv) |
