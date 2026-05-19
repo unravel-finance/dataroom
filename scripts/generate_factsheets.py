@@ -42,6 +42,9 @@ from scripts.factsheet.page_two import render_page_two  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FACTSHEETS_DIR = REPO_ROOT / "factsheets"
+# Per-factor page-2 (AlphaLens) thumbnail, referenced by the web app's
+# "Factor Analysis" resource card.
+PREVIEWS_DIR = REPO_ROOT / "previews"
 
 
 def _fetch_factor_inputs(
@@ -103,6 +106,7 @@ def render_factsheet(factor: Factor, api_key: str) -> Path:
         clean = None
 
     FACTSHEETS_DIR.mkdir(parents=True, exist_ok=True)
+    PREVIEWS_DIR.mkdir(parents=True, exist_ok=True)
     out = FACTSHEETS_DIR / f"{factor.id}.pdf"
 
     with PdfPages(out) as pdf:
@@ -112,6 +116,9 @@ def render_factsheet(factor: Factor, api_key: str) -> Path:
 
         page2 = render_page_two(factor, factor_data, prices)
         pdf.savefig(page2)
+        # Page 2 (the AlphaLens analysis) doubles as the web resource-card
+        # thumbnail — always factor-specific.
+        page2.savefig(PREVIEWS_DIR / f"{factor.id}.png", dpi=150)
         plt.close(page2)
 
     print(f"  ✓ wrote {out.relative_to(REPO_ROOT)}")
