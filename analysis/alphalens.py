@@ -6,11 +6,11 @@ import pandas as pd
 def factor_analysis(
     signal: pd.DataFrame, price: pd.DataFrame, max_loss: float = 1.0
 ) -> None:
-    # Restricting to the dynamic point-in-time universe (and sparse long-only
-    # factors like trend_longonly_adaptive, whose ties collapse the quantile
-    # binning) can drop most of the cross-section. AlphaLens still prints the
-    # exact drop %, so we tolerate the loss instead of raising rather than
-    # silently hiding it.
+    # max_loss is AlphaLens' guard that raises when too much of the factor is
+    # dropped in forward-return alignment + quantile binning. Restricting to
+    # the dynamic universe legitimately drops a lot (90%+ for sparse long-only
+    # factors like trend_longonly_adaptive), so default to 1.0 (never raise);
+    # AlphaLens still prints the exact drop %, so the loss stays visible.
     factor_data = alphalens.utils.get_clean_factor_and_forward_returns(
         signal.stack(), price, quantiles=5, max_loss=max_loss
     )

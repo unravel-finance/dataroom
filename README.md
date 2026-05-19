@@ -35,7 +35,7 @@ This repository provides transparent, easy-to-understand code examples for:
   generated and executed by CI
 
 The `notebooks/` tree is generated from the factor catalog in
-[`scripts/factors_catalog.py`](scripts/factors_catalog.py) by
+[`factors_catalog.py`](factors_catalog.py) by
 `scripts/generate_factor_notebooks.py`. The **Generate Notebooks** GitHub
 Actions workflow regenerates and executes them (so the committed `.ipynb`
 files carry real outputs) on a weekly schedule, on manual dispatch, and

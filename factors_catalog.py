@@ -15,7 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent
 SITE_BASE_URL = "https://unravel.finance"
 
 # Book-a-call CTA — mirrors the `/booking` route used across the site
