@@ -28,7 +28,11 @@ jobs:
       NOTEBOOK_JOBS: '4'
 
     steps:
-      - uses: actions/checkout@v6
+      # Pinned to v5: actions/checkout@v6 breaks the create-pull-request
+      # step below with `remote: Duplicate header: "Authorization"` (HTTP
+      # 400). Revert to @v6 once the upstream incompatibility is fixed.
+      # https://github.com/peter-evans/create-pull-request/issues/4272
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-python@v6
         with:
