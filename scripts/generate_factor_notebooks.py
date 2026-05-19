@@ -203,6 +203,19 @@ def write_scripts(factors: list[Factor]) -> list[Path]:
     return written
 
 
+def prune_stale(keep: set[str]) -> None:
+    """Delete managed notebooks no longer in the catalog (e.g. blacklisted),
+    so a full regen is authoritative. Only touches files we generate."""
+    managed = list(NOTEBOOKS_DIR.glob("factor_analysis_*.ipynb"))
+    managed += list(SRC_DIR.glob("factor_analysis_*.py"))
+    managed += [NOTEBOOKS_DIR / f"{CORRELATION_STEM}.ipynb"]
+    managed += [SRC_DIR / f"{CORRELATION_STEM}.py"]
+    for path in managed:
+        if path.exists() and path.stem not in keep:
+            path.unlink()
+            print(f"  pruned {path.relative_to(REPO_ROOT)}")
+
+
 # Gitignored; uploaded as a CI artefact so it never lands in notebooks/.
 CI_ARTIFACTS = REPO_ROOT / "ci-artifacts"
 LOGS_DIR = CI_ARTIFACTS / "execution_logs"
@@ -276,6 +289,9 @@ def main(argv: list[str]) -> None:
 
     print(f"Generating notebooks for {len(factors)} factor(s):")
     scripts = write_scripts(factors)
+
+    if not wanted:  # full regen is authoritative -- drop anything stale
+        prune_stale({p.stem for p in scripts})
 
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
     jobs = min(_job_count(), len(scripts))

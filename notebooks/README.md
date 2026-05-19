@@ -22,7 +22,6 @@ Correlation heatmap across every portfolio's returns — start here for the big 
 | [Supply Velocity](factor_analysis_supply_velocity.ipynb) | Fundamental | Assets with lower inflation perform better than assets with higher inflation. |
 | [Enhanced Momentum](factor_analysis_momentum_enhanced.ipynb) | Momentum | Captures short-term momentum effects, measured by a wide range of proprietary methods. |
 | [Mean Reversion](factor_analysis_mean_reversion.ipynb) | Statistical | Basket-based mean reversion signal diversified across different windows to capture broad reversal dynamics. |
-| [Trend Consensus Adaptive (Long-Only)](factor_analysis_trend_longonly_adaptive.ipynb) | Trend / Long-Only | Exploits the tendency of assets with positive trend consensus, when the overall market trend is positive. |
 | [Enhanced Carry](factor_analysis_carry_enhanced.ipynb) | Carry | Captures cross-sectional funding premium across a wide range of exchanges, exploiting funding imbalances. |
 | [Instantaneous Volatility](factor_analysis_instantaneous_volatility.ipynb) | Volatility | Proprietary measure of volatility — assets with higher instantaneous volatility tend to outperform in certain market conditions. |
 | [Open Interest Divergence](factor_analysis_open_interest_divergence.ipynb) | Derivatives Positioning | Quantifies open interest divergence and systematically takes positions, aiming to capitalise on behavioural inefficiencies. |

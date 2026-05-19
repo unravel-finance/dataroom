@@ -370,8 +370,14 @@ _FACTORS: list[Factor] = [
     ),
 ]
 
+# Factors excluded from generation/export (kept in the catalog for
+# reference). trend_longonly_adaptive: sparse long-only signal, not useful
+# as a cross-sectional factor analysis.
+BLACKLIST: set[str] = {"trend_longonly_adaptive"}
+
+
 def load_factors() -> list[Factor]:
-    return list(_FACTORS)
+    return [f for f in _FACTORS if f.id not in BLACKLIST]
 
 
 def find_factor(factor_id: str) -> Factor:
