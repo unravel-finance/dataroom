@@ -1,10 +1,4 @@
-"""Shared factsheet brand assets.
-
-Things every page shares, kept here so the copies can't drift:
-  * the top-left brand lockup (logo mark + "Unravel" wordmark);
-  * the brand colour-palette helpers (accent ramps derived from
-    ``theme.ACCENT``) used by the charts.
-"""
+"""Brand lockup (logo + wordmark) and accent-palette helpers."""
 
 from __future__ import annotations
 
@@ -24,11 +18,7 @@ _LOGO_H = 0.022
 
 
 def draw_brand(fig: plt.Figure, margin_x: float) -> None:
-    """Draw the logo mark + 'Unravel' wordmark at the top-left.
-
-    Falls back to a text-only wordmark if the rasterised mark isn't present
-    (matplotlib can't read the SVG source, so the committed PNG is what we
-    embed — see scripts/factsheet/assets/build_logo.py)."""
+    """Logo mark + 'Unravel' wordmark, top-left. Text-only if the PNG is absent."""
     wordmark_x = margin_x
     if LOGO_PNG.exists():
         img = mpimg.imread(LOGO_PNG)
@@ -55,27 +45,19 @@ def _to_hex(rgb) -> str:
 
 
 def accent_ramp(n: int) -> list[str]:
-    """`n` shades of the brand accent, darkest first. Used for grouped series
-    (the 1D/5D/10D quantile bars) so they read on-brand instead of grey while
-    staying distinguishable by lightness."""
+    """`n` accent shades, darkest first — for grouped series (1D/5D/10D bars)."""
     ramp = sns.light_palette(theme.ACCENT, n_colors=n + 1)[1:][::-1]
     return [_to_hex(rgb) for rgb in ramp]
 
 
 def quantile_palette(n: int) -> list[str]:
-    """Single-hue sequential ramp (light → brand accent) for the n quantile
-    lines. One colour scheme instead of five distinct hues — quantiles stay
-    distinguishable by lightness while the chart stays on-brand."""
-    # Light accent-tinted grey for Q1 up to the brand accent for the top.
+    """Single-hue light→accent ramp for the n quantile lines."""
     ramp = sns.blend_palette(["#D9D9D9", theme.ACCENT_SOFT, theme.ACCENT], n)
     return [_to_hex(rgb) for rgb in ramp]
 
 
 def accent_by_magnitude(values, *, floor: float = 0.32) -> list[str]:
-    """One brand-accent shade per value, intensity scaled by |value|.
-
-    The largest-magnitude bar gets the full accent; smaller bars fade toward
-    a light tint but never below ``floor`` so they stay visible on white."""
+    """One accent shade per value, intensity scaled by |value| (>= floor)."""
     cmap = sns.light_palette(theme.ACCENT, as_cmap=True)
     mags = [abs(float(v)) for v in values]
     vmax = max(mags, default=0.0) or 1.0

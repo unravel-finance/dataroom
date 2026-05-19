@@ -14,11 +14,9 @@ on:
         default: false
 
   schedule:
-    # Mondays 06:00 UTC — weekly data-room refresh PR.
     - cron: '0 6 * * 1'
 
-  # TEMPORARY: remove before merging to main — only here so we can iterate on
-  # the factsheet design on the setup branch.
+  # TEMPORARY: remove the push trigger before merging to main.
   push:
     branches:
       - claude/setup-unravel-sales-pipeline-F6ZSG
@@ -43,11 +41,8 @@ jobs:
           python-version: '3.12'
           cache: pip
 
-      # Mona Sans is the factsheet's brand font — its .ttf cuts are bundled
-      # in scripts/factsheet/assets/fonts/ and registered at render time, so
-      # that's what the PDF actually uses. Inter is only a defensive fallback
-      # if those bundled cuts fail to load; without any of them the PDF
-      # drops to DejaVu, which reads as "designed by an engineer".
+      # Defensive fallback only — Mona Sans (the brand font) is bundled in
+      # scripts/factsheet/assets/fonts/; without any sans the PDF hits DejaVu.
       - name: Install Inter font
         run: sudo apt-get update && sudo apt-get install -y fonts-inter
 
@@ -63,8 +58,6 @@ jobs:
             exit 1
           fi
 
-      # All factors by default. Only a manual dispatch can narrow the scope
-      # via the `factors` input; schedule and push always build everything.
       - name: Determine factors to build
         id: scope
         run: |
@@ -101,9 +94,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Stage first, then check if anything is actually staged — this
-          # catches *untracked* new files (the first run creates the
-          # artefact dirs from scratch; `git diff` alone misses those).
+          # Stage before the diff check so first-run untracked dirs count.
           git add data/ factsheets/
           if git diff --cached --quiet; then
             echo "No changes to commit."

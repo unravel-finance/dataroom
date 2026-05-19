@@ -1,9 +1,4 @@
-"""Shared helpers for the factor export / factsheet pipeline.
-
-Keeps the API-key lookup, the ``argv`` → factor selection, and the
-parallel-worker count in one place so ``export_data`` and
-``generate_factsheets`` can't drift apart.
-"""
+"""Shared helpers for the export / factsheet pipeline."""
 
 from __future__ import annotations
 
@@ -20,15 +15,11 @@ def get_api_key() -> str:
 
 
 class UnknownFactors(KeyError):
-    """Raised by :func:`select_factors` when argv names ids not in the catalog."""
+    """Raised by select_factors() when argv names ids not in the catalog."""
 
 
 def select_factors(argv: list[str]) -> list[Factor]:
-    """Every catalog factor, or just the subset named in ``argv``.
-
-    Raises :class:`UnknownFactors` (carrying the sorted unknown ids) when
-    an argument doesn't match a catalog id.
-    """
+    """Every catalog factor, or just the subset named in argv."""
     factors = load_factors()
     if not argv:
         return factors
@@ -41,12 +32,8 @@ def select_factors(argv: list[str]) -> list[Factor]:
 
 
 def job_count(default: int = 4) -> int:
-    """Parallel worker count for the per-factor loop.
-
-    Defaults to a deliberately conservative value (the work is dominated by
-    Unravel API round-trips, so this is mostly about not hammering the API)
-    and is overridable via the ``FACTSHEET_JOBS`` environment variable.
-    """
+    """Parallel worker count (override via FACTSHEET_JOBS). Conservative
+    default — the work is dominated by Unravel API round-trips."""
     raw = os.environ.get("FACTSHEET_JOBS", "").strip()
     if not raw:
         return default

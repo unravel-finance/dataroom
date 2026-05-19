@@ -1,4 +1,4 @@
-"""Shared AlphaLens helpers used by both page 1 and page 2 of the factsheet."""
+"""Shared AlphaLens helper."""
 
 from __future__ import annotations
 
@@ -15,11 +15,8 @@ def clean_factor_data(
     cols = factor_data.columns.intersection(prices.columns)
     if cols.empty:
         raise ValueError("No overlapping tickers between factor data and prices")
-    # Execution lag (+1): the factor on date t is only known at t's close, so
-    # the earliest realistic entry is the next bar. AlphaLens already offsets
-    # each forward return by its full period window, but it enters at t's own
-    # price — a 1-bar look-ahead. Shifting the signal forward one day removes
-    # it (factor[t] is paired with the t+1 → t+1+period return).
+    # +1 execution lag: factor[t] is only known at t's close, so pair it with
+    # the t+1 → t+1+period return (removes AlphaLens' 1-bar look-ahead).
     signal = factor_data[cols].shift(1).stack()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

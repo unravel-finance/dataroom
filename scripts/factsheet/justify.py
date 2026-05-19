@@ -1,9 +1,4 @@
-"""Justified text layout for the factsheet pages.
-
-matplotlib has no native text justification, so we measure each word's
-rendered width and distribute the slack evenly between words. Shared by
-page 1 (overview body) and page 2 (notice & disclaimer).
-"""
+"""Justified text layout (matplotlib has no native justification)."""
 
 from __future__ import annotations
 
@@ -17,7 +12,6 @@ from scripts.factsheet import theme
 def _measure_text_width_frac(
     fig: plt.Figure, text: str, fontsize: float
 ) -> float:
-    """Width of `text` rendered at `fontsize`, in figure-fraction units."""
     renderer = fig.canvas.get_renderer()
     t = fig.text(0, 0, text, fontsize=fontsize)
     px = t.get_window_extent(renderer=renderer).width
@@ -34,8 +28,6 @@ def _render_justified_line(
     color: str,
     column_width_frac: float,
 ) -> None:
-    """Render `line` filling exactly `column_width_frac`, distributing extra
-    space evenly between words. Single-word lines fall back to left-align."""
     words = line.split()
     if len(words) <= 1:
         fig.text(x_frac, y_frac, line, fontsize=fontsize, color=color, va="top")
@@ -43,8 +35,7 @@ def _render_justified_line(
     word_widths = [_measure_text_width_frac(fig, w, fontsize) for w in words]
     total_word_w = sum(word_widths)
     gap = (column_width_frac - total_word_w) / (len(words) - 1)
-    # Safety: if the line is already wider than the column, don't try to
-    # compress (gap would go negative) — just render left-aligned.
+    # Line already wider than the column — don't compress, just left-align.
     if gap < 0:
         fig.text(x_frac, y_frac, line, fontsize=fontsize, color=color, va="top")
         return
@@ -67,8 +58,7 @@ def _render_justified_block(
     wrap_chars: int,
     paragraph_gap: float = 0.6,
 ) -> None:
-    """Render `text` as a justified column. Last line of each paragraph stays
-    ragged-right (typographic convention)."""
+    """Render `text` as a justified column; last line of each paragraph ragged."""
     line_height_frac = (fontsize * linespacing / 72.0) / theme.PAGE_H_IN
     paragraph_gap_frac = line_height_frac * paragraph_gap
 
