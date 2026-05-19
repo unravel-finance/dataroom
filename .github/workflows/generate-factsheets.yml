@@ -16,11 +16,6 @@ on:
   schedule:
     - cron: '0 6 * * 1'
 
-  # TEMPORARY: remove the push trigger before merging to main.
-  push:
-    branches:
-      - claude/setup-unravel-sales-pipeline-F6ZSG
-
 permissions:
   contents: write
   pull-requests: write
