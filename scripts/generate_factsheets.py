@@ -38,7 +38,7 @@ from scripts.factors_catalog import Factor  # noqa: E402
 from scripts.factsheet import metrics  # noqa: E402
 from scripts.factsheet.al_utils import clean_factor_data  # noqa: E402
 from scripts.factsheet.page_one import render_page_one  # noqa: E402
-from scripts.factsheet.page_two import render_page_two  # noqa: E402
+from scripts.factsheet.page_two import charts_bbox, render_page_two  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FACTSHEETS_DIR = REPO_ROOT / "factsheets"
@@ -117,8 +117,15 @@ def render_factsheet(factor: Factor, api_key: str) -> Path:
         page2 = render_page_two(factor, factor_data, prices)
         pdf.savefig(page2)
         # Page 2 (the AlphaLens analysis) doubles as the web resource-card
-        # thumbnail — always factor-specific.
-        page2.savefig(PREVIEWS_DIR / f"{factor.id}.png", dpi=150)
+        # thumbnail — always factor-specific. Crop it to just the chart
+        # cluster so its aspect ratio matches the notebook-derived cards
+        # beside it; the PDF keeps the full page.
+        crop = charts_bbox(page2)
+        page2.savefig(
+            PREVIEWS_DIR / f"{factor.id}.png",
+            dpi=150,
+            bbox_inches=crop if crop is not None else None,
+        )
         plt.close(page2)
 
     print(f"  ✓ wrote {out.relative_to(REPO_ROOT)}")
