@@ -9,7 +9,6 @@ on:
   push:
     branches:
       - main
-      - claude/add-alphalens-yaml-config-2GlKg
 
 permissions:
   contents: write
