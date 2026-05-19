@@ -13,8 +13,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SITE_BASE_URL = "https://unravel.finance"
 BOOKING_URL = f"{SITE_BASE_URL}/booking"
 
-GITHUB_BLOB_BASE = "https://github.com/unravel-finance/api-guide/blob/main"
-GITHUB_RAW_BASE = "https://raw.githubusercontent.com/unravel-finance/api-guide/main"
+GITHUB_BLOB_BASE = "https://github.com/unravel-finance/dataroom/blob/main"
+GITHUB_RAW_BASE = "https://raw.githubusercontent.com/unravel-finance/dataroom/main"
 # Factors without a committed factor_analysis_<id>.ipynb fall back to this.
 _GENERIC_NOTEBOOK = "notebooks/00_replicate_portfolio_backtest.ipynb"
 
