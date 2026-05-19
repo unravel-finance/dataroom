@@ -16,9 +16,17 @@ on:
   schedule:
     - cron: '0 6 * * 1'
 
+  push:
+    branches:
+      - main
+
 permissions:
   contents: write
   pull-requests: write
+
+concurrency:
+  group: generate-factsheets-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   generate:
@@ -91,7 +99,7 @@ jobs:
           if-no-files-found: error
 
       - name: Commit refreshed data back to the branch
-        if: ${{ github.event_name == 'push' && github.event.inputs.skip_commit != 'true' }}
+        if: ${{ github.event_name == 'push' && github.ref_name != 'main' && github.event.inputs.skip_commit != 'true' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -109,7 +117,7 @@ jobs:
           git push origin "HEAD:${GITHUB_REF_NAME}"
 
       - name: Open PR with refreshed data
-        if: ${{ github.event_name != 'push' && github.event.inputs.skip_commit != 'true' }}
+        if: ${{ (github.event_name != 'push' || github.ref_name == 'main') && github.event.inputs.skip_commit != 'true' }}
         uses: peter-evans/create-pull-request@v6
         with:
           base: main
