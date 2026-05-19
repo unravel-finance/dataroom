@@ -44,7 +44,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 FACTSHEETS_DIR = REPO_ROOT / "factsheets"
 # Per-factor page-2 (AlphaLens) thumbnail, referenced by the web app's
 # "Factor Analysis" resource card.
-PREVIEWS_DIR = REPO_ROOT / "previews"
+PREVIEWS_DIR = FACTSHEETS_DIR / "previews"
 
 
 def _fetch_factor_inputs(
