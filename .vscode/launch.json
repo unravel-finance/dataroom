@@ -8,7 +8,7 @@
       "name": "Convert to Notebooks",
       "type": "debugpy",
       "request": "launch",
-      "module": "convert_to_notebooks",
+      "module": "scripts.convert_to_notebooks",
       "justMyCode": true,
     },
   ],
