@@ -15,7 +15,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from scripts.factors_catalog import GITHUB_BLOB_BASE, Factor, load_factors
+from scripts.factors_catalog import Factor, load_factors
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 NOTEBOOKS_DIR = REPO_ROOT / "notebooks"
@@ -153,7 +153,7 @@ _TABLE_END = "<!-- END FACTOR TABLE -->"
 def _factor_table(factors: list[Factor]) -> str:
     rows = "\n".join(
         f"| [{f.name}]({f.detail_url}) "
-        f"| [PDF]({GITHUB_BLOB_BASE}/factsheets/{f.id}.pdf) "
+        f"| [PDF](factsheets/{f.id}.pdf) "
         f"| [notebook](notebooks/factor_analysis_{f.id}.ipynb) "
         f"| [CSV]({f.factor_data_csv_url}) "
         f"| [CSV]({f.returns_csv_url}) |"
