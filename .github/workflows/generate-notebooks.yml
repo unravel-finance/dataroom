@@ -1,9 +1,5 @@
 name: Generate Notebooks
 
-# Regenerates, executes, and publishes the notebooks/ tree from
-# scripts/factors_catalog.py. Push to a dev branch commits the executed notebooks
-# back; schedule/dispatch/push-to-main opens a PR into main.
-
 on:
   workflow_dispatch:
 
@@ -13,8 +9,6 @@ on:
   push:
     branches:
       - main
-      # TEMPORARY: verify the generator on every commit of this PR.
-      # Remove before merging to main.
       - claude/add-alphalens-yaml-config-2GlKg
 
 permissions:
@@ -73,8 +67,6 @@ jobs:
           path: ci-artifacts/
           if-no-files-found: ignore
 
-      # always() so the latest rendered notebooks land for review even when
-      # some fail (diagnostics go to the artefact above, not the tree).
       - name: Commit executed notebooks back to the branch
         if: ${{ always() && github.event_name == 'push' && github.ref_name != 'main' }}
         run: |
