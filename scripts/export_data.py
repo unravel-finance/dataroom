@@ -1,9 +1,5 @@
 """Export per-factor CSVs (portfolio returns + raw factor data) from the Unravel API.
 
-Outputs:
-    data/portfolio-40-returns/<factor_id>.csv  — daily returns of the unconstrained (.40) portfolio
-    data/raw-factors/<factor_id>.csv           — historical raw factor data (per-ticker)
-
 Usage:
     python -m scripts.export_data                 # all factors
     python -m scripts.export_data altair          # one factor
@@ -31,14 +27,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 RETURNS_DIR = REPO_ROOT / "data" / "portfolio-40-returns"
 FACTORS_DIR = REPO_ROOT / "data" / "raw-factors"
 
-# The most recent factor values are a live, paid signal — never publish them.
-# We embargo the trailing 30 calendar days from the open raw-factor export.
+# Recent factor values are a live, paid signal — never publish them.
 EMBARGO_DAYS = 30
 
 
 def _embargo_recent(factor_data: pd.DataFrame) -> pd.DataFrame:
-    """Drop the trailing EMBARGO_DAYS of rows so the raw export never leaks
-    the most recent (still-live) factor signal."""
+    """Drop the trailing EMBARGO_DAYS so the export never leaks live signal."""
     idx = pd.to_datetime(factor_data.index)
     tz = getattr(idx, "tz", None)
     cutoff = pd.Timestamp.now(tz=tz).normalize() - pd.Timedelta(days=EMBARGO_DAYS)
@@ -75,12 +69,10 @@ def export_returns(factor: Factor, api_key: str) -> Path:
 
 
 def export_factor_data(factor: Factor, api_key: str) -> Path:
-    """Save the raw historical factor data (per-ticker time series) as a CSV.
+    """Save the raw factor data on the full, unconstrained universe.
 
-    Exported on the *full, unconstrained* universe (every ticker the factor
-    spans), not the Top-N portfolio universe — the data-room CSV is meant to
-    show the complete factor, while the factsheet's AlphaLens analysis pins
-    to the rolling Top-N separately.
+    (The factsheet's AlphaLens analysis pins to the rolling Top-N
+    separately; this CSV is the complete factor.)
     """
     tickers = get_tickers(
         id=factor.portfolio_id.split(".")[0],
@@ -95,9 +87,7 @@ def export_factor_data(factor: Factor, api_key: str) -> Path:
     )
     factor_data.index.name = "date"
     factor_data = _embargo_recent(factor_data)
-    # float32 + 4-significant-digit %g keeps the CSV compact; this precision
-    # is well within float32's noise floor for factor values and leaves
-    # rank/quantile analysis unaffected.
+    # float32 + %.4g: within float32 noise for factor values, keeps CSV small.
     factor_data = factor_data.astype("float32")
 
     FACTORS_DIR.mkdir(parents=True, exist_ok=True)
@@ -124,9 +114,7 @@ def main(argv: list[str]) -> int:
         print(f"Unknown factor(s): {exc.args[0]}", file=sys.stderr)
         return 1
 
-    # The per-factor work is dominated by Unravel API round-trips, so a
-    # thread pool gives a near-linear wall-clock speedup. (No matplotlib
-    # here, so threads are safe — unlike generate_factsheets.)
+    # API-bound work — a thread pool is safe here (no matplotlib).
     workers = min(job_count(), len(factors)) or 1
     failures: list[str] = []
 
@@ -145,7 +133,7 @@ def main(argv: list[str]) -> int:
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = [pool.submit(_run, f) for f in factors]
             for fut in as_completed(futures):
-                fut.result()  # _run swallows; this only re-raises bugs in _run
+                fut.result()
 
     if failures:
         print(f"\nFailed: {sorted(failures)}", file=sys.stderr)

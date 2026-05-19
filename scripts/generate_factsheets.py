@@ -1,15 +1,5 @@
 """Render a two-page PDF factsheet for each single-factor portfolio.
 
-Workflow:
-    1. Pull the portfolio returns (for page 1's performance chart).
-    2. Pull the raw factor data + underlying prices for the AlphaLens analysis
-       on page 2.
-    3. Combine both pages into one PDF per factor under factsheets/.
-
-CSVs are exported as a side-effect (export_data does the same thing but we
-re-fetch here so generating PDFs doesn't depend on the CSV step being run
-first — useful when iterating locally).
-
 Usage:
     python -m scripts.generate_factsheets                  # all factors
     python -m scripts.generate_factsheets supply_velocity  # one factor
@@ -21,9 +11,8 @@ import sys
 import traceback
 from pathlib import Path
 
-# Headless, thread-/process-safe backend. MUST be set before any pyplot
-# import (including the transitive ones via scripts.factsheet.*), otherwise
-# the joblib workers can pick up an interactive backend.
+# Headless backend — MUST be set before any pyplot import (incl. transitive
+# via scripts.factsheet.*) so the joblib workers stay non-interactive.
 import matplotlib
 
 matplotlib.use("Agg")
@@ -58,15 +47,8 @@ FACTSHEETS_DIR = REPO_ROOT / "factsheets"
 def _fetch_factor_inputs(
     factor: Factor, api_key: str
 ) -> tuple[pd.Series, pd.DataFrame, pd.DataFrame]:
-    """Fetch the inputs for the factsheet.
-
-    The page-2 AlphaLens analysis (and the page-1 signal-quality bars) are
-    run on the *rolling* Top-N universe — i.e. only the assets that were
-    actually in the Top-N membership on each date, reconstructed
-    point-in-time to avoid look-ahead bias. The raw, full-universe factor
-    data is still exported to CSV separately by scripts.export_data, so the
-    data-room CSV keeps the large universe.
-    """
+    """Fetch returns + factor data + prices, masked to the rolling Top-N
+    universe (point-in-time, no look-ahead)."""
     template_id = factor.portfolio_id.split(".")[0]
 
     returns = get_portfolio_returns(id=factor.portfolio_id, api_key=api_key)
@@ -75,8 +57,6 @@ def _fetch_factor_inputs(
     start_date = returns.index.min().strftime("%Y-%m-%d")
     end_date = returns.index.max().strftime("%Y-%m-%d")
 
-    # Rolling Top-N universe membership: date × ticker, truthy where the
-    # asset was a member on that date.
     universe = get_historical_universe(
         size=factor.default_universe,
         start_date=start_date,
@@ -94,8 +74,6 @@ def _fetch_factor_inputs(
         end_date=end_date,
     )
     factor_data.index = pd.to_datetime(factor_data.index)
-    # Mask to the rolling universe — values for assets outside the Top-N on
-    # a given date become NaN and are dropped by AlphaLens.
     factor_data = factor_data.where(
         universe.reindex(
             index=factor_data.index, columns=factor_data.columns
@@ -116,10 +94,8 @@ def render_factsheet(factor: Factor, api_key: str) -> Path:
     print(f"[{factor.id}] {factor.name}")
     returns, factor_data, prices = _fetch_factor_inputs(factor, api_key)
     stats = metrics.compute_stats(returns)
-    # Clean once, share with both pages — page 1 uses it for the top-right
-    # signal-quality bar chart, page 2 uses it for the full AlphaLens panel
-    # grid. Best-effort: if AlphaLens preparation fails the top-right bars
-    # are skipped silently and page 2 falls back to its own error path.
+    # Clean once, shared by both pages. Best-effort: page 1 skips its
+    # top-right bars and page 2 falls back to its own error path.
     try:
         clean = clean_factor_data(factor_data, prices)
     except Exception as exc:  # noqa: BLE001
@@ -143,11 +119,7 @@ def render_factsheet(factor: Factor, api_key: str) -> Path:
 
 
 def _render_safe(factor: Factor, api_key: str) -> tuple[str, str | None]:
-    """Process-pool worker: render one factsheet, never raise.
-
-    Returns ``(factor_id, error_or_None)`` so the parent can aggregate
-    failures the way the old sequential loop did.
-    """
+    """Process-pool worker: render one factsheet, never raise."""
     try:
         render_factsheet(factor, api_key)
         return factor.id, None
@@ -165,9 +137,8 @@ def main(argv: list[str]) -> int:
         print(f"Unknown factor(s): {exc.args[0]}", file=sys.stderr)
         return 1
 
-    # Process-based (loky) parallelism, NOT threads: matplotlib's pyplot
-    # state machine (theme.new_page() → plt.figure()) is not thread-safe.
-    # Each worker renders one factsheet in its own interpreter.
+    # Process-based (loky), NOT threads: pyplot's state machine isn't
+    # thread-safe. Each worker renders one factsheet in its own interpreter.
     workers = min(job_count(), len(factors)) or 1
     if workers <= 1:
         results = [_render_safe(f, api_key) for f in factors]

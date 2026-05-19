@@ -1,9 +1,4 @@
-"""Shared website-style link buttons for the factsheet pages.
-
-A button is a square-cornered rectangle whose *entire area* is a single
-clickable hyperlink in the exported PDF. Primary = filled ink; secondary =
-outlined (matches the site's sharp-cornered button styling).
-"""
+"""Website-style link buttons — the whole rectangle is one PDF hyperlink."""
 
 from __future__ import annotations
 
@@ -13,24 +8,21 @@ from matplotlib.patches import Rectangle
 
 from scripts.factsheet import theme
 
-# Default button height (figure fraction) — the primary CTA size on page 2.
 BTN_H = 0.030
 
 
 class RectLink(Artist):
-    """Inject a PDF Link annotation over a figure-fraction rectangle.
+    """PDF Link annotation over a figure-fraction rectangle.
 
-    matplotlib's PDF backend only emits link annotations for *text*, never
-    for patches, so a Rectangle's ``set_url`` is silently dropped. This
-    artist adds the whole-button hyperlink ourselves via the official
-    ``_get_link_annotation`` helper, and degrades to a no-op on any non-PDF
-    backend (or if matplotlib's private API ever moves).
+    matplotlib's PDF backend only emits link annotations for text, not
+    patches, so we add the whole-button link via the backend's
+    _get_link_annotation. No-op on non-PDF backends / API changes.
     """
 
     def __init__(self, fig: plt.Figure, rect: tuple, url: str) -> None:
         super().__init__()
         self._fig = fig
-        self._rect = rect  # (x, y, w, h) in figure fractions
+        self._rect = rect  # (x, y, w, h) figure fractions
         self._url = url
         self.set_zorder(7)
 
@@ -41,8 +33,7 @@ class RectLink(Artist):
                 _get_link_annotation,
             )
 
-            # The PDF backend draws through a MixedModeRenderer wrapper;
-            # unwrap the `_renderer` chain to reach the real RendererPdf.
+            # Unwrap the MixedModeRenderer chain to the real RendererPdf.
             pdf = renderer
             seen = set()
             while pdf is not None and id(pdf) not in seen:
@@ -76,9 +67,7 @@ def draw_link_button(
     height: float = BTN_H,
     fontsize: float = 8,
 ) -> None:
-    """A website-style square-cornered button. The whole rectangle is a
-    single clickable link in the PDF. Primary = filled ink; secondary =
-    outlined (matches the site's sharp-cornered button styling)."""
+    """Square-cornered button; whole rect links. Primary = filled ink."""
     face = theme.INK if primary else "#FFFFFF"
     edge = theme.INK if primary else "#D4D4D4"
     fg = "#FFFFFF" if primary else theme.INK

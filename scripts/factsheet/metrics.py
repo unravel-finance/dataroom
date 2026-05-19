@@ -1,8 +1,7 @@
-"""Performance statistics for a daily-returns time series.
+"""Performance statistics for a daily-returns series.
 
-All metric math is delegated to `finml_utils.quantstats.stats` so we don't
-reinvent canonical calculations. `periods=365` everywhere because crypto
-trades every calendar day (the upstream default is 252 trading days).
+Math is delegated to finml_utils.quantstats; periods=365 because crypto
+trades every calendar day (upstream defaults to 252).
 """
 
 from __future__ import annotations
@@ -14,7 +13,7 @@ import numpy as np
 import pandas as pd
 from finml_utils.quantstats import stats as qs
 
-TRADING_DAYS = 365  # crypto trades 7 days a week
+TRADING_DAYS = 365
 
 
 @dataclass(frozen=True)
@@ -53,8 +52,7 @@ def compute_stats(returns: pd.Series) -> Stats:
 
     cagr = float(qs.cagr(r, periods=TRADING_DAYS))
     max_dd = float(qs.max_drawdown(r))
-    # qs.calmar uses its default periods=252 internally; recompute with our
-    # crypto period instead so the ratio is consistent with our CAGR figure.
+    # Recompute Calmar with our crypto period (qs.calmar hardcodes 252).
     calmar = cagr / abs(max_dd) if max_dd < 0 else float("nan")
 
     return Stats(
@@ -73,8 +71,6 @@ def compute_stats(returns: pd.Series) -> Stats:
         worst_month=float(qs.worst(r, aggregate="ME")),
     )
 
-
-# --- windowed performance / risk tables (page 1) -----------------------------
 
 # (label, calendar-day lookback). None = since inception.
 _RETURN_WINDOWS: list[tuple[str, int | None]] = [
@@ -101,8 +97,7 @@ def _window_slice(returns: pd.Series, days: int | None) -> pd.Series:
 
 
 def gross_return_by_window(returns: pd.Series) -> dict[str, float]:
-    """Compound (gross) return over each trailing window. NaN when the
-    history is shorter than the window."""
+    """Compound return per trailing window; NaN when history is too short."""
     r = returns.dropna()
     span_days = (r.index[-1] - r.index[0]).days
     out: dict[str, float] = {}
@@ -116,8 +111,7 @@ def gross_return_by_window(returns: pd.Series) -> dict[str, float]:
 
 
 def annual_returns(returns: pd.Series) -> dict[str, float]:
-    """Calendar-year compound returns; the last (partial) year is labelled
-    YTD."""
+    """Calendar-year compound returns; the last (partial) year is YTD."""
     r = returns.dropna()
     yearly = (1.0 + r).groupby(r.index.year).prod() - 1.0
     out: dict[str, float] = {}
@@ -128,7 +122,7 @@ def annual_returns(returns: pd.Series) -> dict[str, float]:
 
 
 def realized_vol_by_window(returns: pd.Series) -> dict[str, float]:
-    """Annualised realised volatility over each trailing window."""
+    """Annualised realised volatility per trailing window."""
     r = returns.dropna()
     span_days = (r.index[-1] - r.index[0]).days
     out: dict[str, float] = {}
@@ -144,8 +138,7 @@ def realized_vol_by_window(returns: pd.Series) -> dict[str, float]:
 
 
 def return_to_risk_by_window(returns: pd.Series) -> dict[str, float]:
-    """Gross return over a window divided by that window's realised vol —
-    the same construction Kaiko's factsheets use."""
+    """Window gross return divided by that window's realised vol."""
     gr = gross_return_by_window(returns)
     vol = realized_vol_by_window(returns)
     out: dict[str, float] = {}
