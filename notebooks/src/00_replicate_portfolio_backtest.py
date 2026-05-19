@@ -1,4 +1,13 @@
 # %%
+import sys
+from pathlib import Path
+
+_root = Path.cwd()
+while not (_root / "notebooks" / "analysis").is_dir() and _root != _root.parent:
+    _root = _root.parent
+for _p in (_root, _root / "notebooks"):
+    sys.path.insert(0, str(_p))
+
 from unravel_client import get_portfolio_historical_weights
 
 from analysis.backtest import backtest_portfolio
