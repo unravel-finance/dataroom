@@ -15,7 +15,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from factors_catalog import Factor, load_factors
+from scripts.factors_catalog import Factor, load_factors
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 NOTEBOOKS_DIR = REPO_ROOT / "notebooks"
@@ -23,7 +23,7 @@ SRC_DIR = NOTEBOOKS_DIR / "src"
 # 00_ prefix sorts the cross-factor overview above every factor_analysis_*.
 CORRELATION_STEM = "00_factor_returns_correlation"
 
-# Resolves `import analysis` / `import factors_catalog` from wherever the
+# Resolves `import analysis` / `scripts.factors_catalog` from wherever the
 # notebook runs (notebooks/ under Jupyter, repo root under nbconvert).
 _PATH_BOOTSTRAP = '''import sys
 from pathlib import Path
@@ -35,7 +35,7 @@ sys.path.insert(0, str(_repo_root))
 '''
 
 _GENERATED_BANNER = (
-    "# AUTO-GENERATED from factors_catalog.py by\n"
+    "# AUTO-GENERATED from scripts/factors_catalog.py by\n"
     "# scripts/generate_factor_notebooks.py -- do not edit by hand.\n"
 )
 
@@ -102,7 +102,7 @@ import seaborn as sns
 from unravel_client import get_portfolio_returns
 
 from analysis.utils import get_env
-from factors_catalog import load_factors
+from scripts.factors_catalog import load_factors
 
 UNRAVEL_API_KEY = get_env("UNRAVEL_API_KEY")
 
@@ -150,7 +150,7 @@ def _readme(factors: list[Factor]) -> str:
         for f in factors
     )
     return (
-        "<!-- AUTO-GENERATED from factors_catalog.py -- do not edit. -->\n\n"
+        "<!-- AUTO-GENERATED from scripts/factors_catalog.py -- do not edit. -->\n\n"
         "# Factor Analysis Notebooks\n\n"
         "AlphaLens factor analysis for every Unravel single-factor portfolio, "
         "run on the **dynamic, point-in-time universe** (not every ticker ever "

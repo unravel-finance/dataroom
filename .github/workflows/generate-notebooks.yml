@@ -1,7 +1,7 @@
 name: Generate Notebooks
 
 # Regenerates, executes, and publishes the notebooks/ tree from
-# factors_catalog.py. Push to a dev branch commits the executed notebooks
+# scripts/factors_catalog.py. Push to a dev branch commits the executed notebooks
 # back; schedule/dispatch/push-to-main opens a PR into main.
 
 on:
@@ -102,7 +102,7 @@ jobs:
           title: "chore(Notebooks): Refresh factor analysis notebooks"
           body: |
             Automated regeneration of the factor notebooks from
-            `factors_catalog.py`, executed against the live Unravel API.
+            `scripts/factors_catalog.py`, executed against the live Unravel API.
 
             Trigger: `${{ github.event_name }}`.
           delete-branch: true

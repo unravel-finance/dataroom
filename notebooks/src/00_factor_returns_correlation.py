@@ -1,5 +1,5 @@
 # %%
-# AUTO-GENERATED from factors_catalog.py by
+# AUTO-GENERATED from scripts/factors_catalog.py by
 # scripts/generate_factor_notebooks.py -- do not edit by hand.
 import sys
 from pathlib import Path
@@ -15,7 +15,7 @@ import seaborn as sns
 from unravel_client import get_portfolio_returns
 
 from analysis.utils import get_env
-from factors_catalog import load_factors
+from scripts.factors_catalog import load_factors
 
 UNRAVEL_API_KEY = get_env("UNRAVEL_API_KEY")
 

@@ -1,5 +1,5 @@
 # %%
-# AUTO-GENERATED from factors_catalog.py by
+# AUTO-GENERATED from scripts/factors_catalog.py by
 # scripts/generate_factor_notebooks.py -- do not edit by hand.
 import sys
 from pathlib import Path

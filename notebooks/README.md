@@ -1,4 +1,4 @@
-<!-- AUTO-GENERATED from factors_catalog.py -- do not edit. -->
+<!-- AUTO-GENERATED from scripts/factors_catalog.py -- do not edit. -->
 
 # Factor Analysis Notebooks
 
