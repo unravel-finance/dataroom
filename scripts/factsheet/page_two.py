@@ -1,0 +1,565 @@
+"""Page 2 — AlphaLens-style cross-sectional factor analysis.
+
+Reading order (per the Claude Design critique):
+    TL = Mean forward return by quantile  (does the signal separate?)
+    TR = IC time-series + IC stats        (is the separation stable?)
+    BL = Cumulative return by quantile    (what does it compound to?)
+    BR = Q5 − Q1 spread                   (long–short equity curve)
+"""
+
+from __future__ import annotations
+
+import textwrap
+from datetime import date as _date
+
+import alphalens
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
+import numpy as np
+import pandas as pd
+from matplotlib.gridspec import GridSpec
+
+from scripts.factors_catalog import BOOKING_URL, Factor
+from scripts.factsheet import metrics, theme
+from scripts.factsheet.al_utils import clean_factor_data
+from scripts.factsheet.branding import accent_ramp, draw_brand, quantile_palette
+from scripts.factsheet.buttons import BTN_H, draw_link_button
+from scripts.factsheet.justify import _render_justified_block
+
+MARGIN_X = 0.07
+RIGHT_X = 1.0 - MARGIN_X
+COL_WIDTH = RIGHT_X - MARGIN_X
+
+
+def _set_year_ticks(ax: plt.Axes) -> None:
+    ax.xaxis.set_major_locator(mdates.YearLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+
+
+def _draw_header(fig: plt.Figure, factor: Factor, page: int) -> None:
+    """Header — mirrors page 1: logo + Unravel wordmark left, page label right."""
+    draw_brand(fig, MARGIN_X)
+    fig.text(
+        RIGHT_X,
+        0.960,
+        f"{_date.today():%b %Y}    ·    {page} / 2",
+        fontsize=8,
+        color=theme.MUTED,
+        ha="right",
+        va="center",
+    )
+    fig.add_artist(
+        plt.Line2D(
+            [MARGIN_X, RIGHT_X], [0.940, 0.940], color=theme.HAIR, linewidth=0.6
+        )
+    )
+
+    # Title block. "Factor Analysis" reads as a section subtitle here — the
+    # document title is the factor name (big on page 1, top-right here) — so
+    # it's set smaller than page 1's hero, which also frees vertical height
+    # for the charts below.
+    title = fig.text(
+        MARGIN_X,
+        0.920,
+        "Factor Analysis",
+        fontsize=22,
+        fontweight="bold",
+        color=theme.INK,
+        va="top",
+        family=theme.display_font(),
+    )
+    # Secondary CTA vertically centred on the rendered title glyphs — measure
+    # the real text bbox so it doesn't drift with font metrics. Direct
+    # download of the raw factor-data CSV referenced in the body copy below.
+    renderer = fig.canvas.get_renderer()
+    inv = fig.transFigure.inverted()
+    tbox = title.get_window_extent(renderer)
+    (_, ty0) = inv.transform((tbox.x0, tbox.y0))
+    (_, ty1) = inv.transform((tbox.x0, tbox.y1))
+    title_mid = (ty0 + ty1) / 2.0
+    csv_btn_w = 0.235
+    csv_btn_h = 0.022
+    draw_link_button(
+        fig,
+        RIGHT_X - csv_btn_w,
+        title_mid - csv_btn_h / 2.0,
+        csv_btn_w,
+        "Download Factor Data (CSV)",
+        factor.factor_data_csv_url,
+        primary=False,
+        height=csv_btn_h,
+        fontsize=7.5,
+    )
+    _render_justified_block(
+        fig,
+        x_frac=MARGIN_X,
+        y_top=0.880,
+        column_width_frac=COL_WIDTH,
+        text=(
+            "Diagnostics on the raw factor values, independent of "
+            "portfolio construction: the quantile and IC plots show "
+            "whether the signal cross-sectionally separates out- from "
+            "under-performers, and how consistently. Computed "
+            f"point-in-time on the rolling Top {factor.default_universe} "
+            "universe (the live factor spans many more tokens — see the "
+            "raw factor-data CSV in the data room)."
+        ),
+        fontsize=9.5,
+        color=theme.SUB_INK,
+        linespacing=1.5,
+        wrap_chars=116,
+    )
+
+
+_NOTICE = (
+    "Unless indicated otherwise, this document and all information contained "
+    "within — including, without limitation, all methods, processes, "
+    "concepts, text, data, graphs and charts (together, the “Content”) — is "
+    "the property of Unravel Finance and its affiliates (“Unravel”) or its "
+    "licensors. Unravel does not provide investment advice and nothing in "
+    "the Content shall be construed as such. In particular, the inclusion, "
+    "weighting or exclusion of an asset or exchange does not in any way "
+    "suggest or reflect an opinion of Unravel. Financial instruments based "
+    "on Unravel factors or indices are in no way sponsored, endorsed, sold "
+    "or promoted by Unravel. The Content is provided solely for "
+    "informational purposes based upon information generally available to "
+    "the public and from sources believed to be reliable. No Content may be "
+    "modified, reproduced, reverse engineered, or distributed in any form or "
+    "by any means without the prior written consent of Unravel. THE CONTENT "
+    "IS PROVIDED ON AN “AS IS” BASIS AND UNRAVEL DISCLAIMS ANY AND ALL "
+    "EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO ANY "
+    "WARRANTIES OF FITNESS FOR A PARTICULAR PURPOSE OR USE, FREEDOM FROM "
+    "BUGS, OR SOFTWARE ERRORS OR DEFECTS. In no event shall Unravel be "
+    "liable for any direct, indirect, incidental, compensatory, punitive, "
+    "special or consequential damages, costs, expenses, legal fees or "
+    "losses (including, without limitation, lost income or lost profits and "
+    "opportunity costs) in connection with any use of the Content even if "
+    "advised of the possibility of such damages. Performance shown is "
+    "derived from an illustrative single-factor portfolio and may include "
+    "hypothetical, back-tested results that reflect application of a "
+    "methodology with the benefit of hindsight; actual results may differ "
+    "materially. Past performance is not an indication or guarantee of "
+    "future results."
+)
+
+
+_ABOUT = (
+    "Unravel publishes a catalog of cross-sectional, market-neutral crypto "
+    "factors — each with point-in-time history and live signals — designed "
+    "to be combined into multi-factor portfolios that diversify away "
+    "single-factor risk. Full catalog, methodology and API at "
+    "unravel.finance; see the materials below."
+)
+
+_ABOUT_WRAP = 150
+
+
+def _section_rule(fig: plt.Figure, y_top: float, label: str) -> None:
+    """Section label + hairline rule — shared by ABOUT and NOTICE so both
+    headings share one styling."""
+    fig.text(
+        MARGIN_X,
+        y_top,
+        label,
+        fontsize=8,
+        color=theme.INK,
+        weight="semibold",
+        va="top",
+    )
+    fig.add_artist(
+        plt.Line2D(
+            [MARGIN_X, RIGHT_X],
+            [y_top - 0.012, y_top - 0.012],
+            color=theme.HAIR,
+            linewidth=0.6,
+        )
+    )
+
+
+def _draw_about_and_notice(fig: plt.Figure, factor: Factor) -> None:
+    """ABOUT UNRAVEL section (heading + rule + body + further-materials
+    buttons) stacked above a bottom-aligned NOTICE & DISCLAIMER section."""
+    # --- Notice & Disclaimer body — bottom-anchored near the page foot.
+    # The section title/rule is intentionally omitted; the fine print stands
+    # on its own. notice_head_y is kept purely as the About-block anchor.
+    n_lines = textwrap.fill(_NOTICE, width=164).count("\n") + 1
+    notice_line_h = (5.8 * 1.42 / 72.0) / theme.PAGE_H_IN
+    notice_body_top = 0.038 + n_lines * notice_line_h
+    notice_head_y = notice_body_top + 0.018
+
+    _render_justified_block(
+        fig,
+        x_frac=MARGIN_X,
+        y_top=notice_body_top,
+        column_width_frac=COL_WIDTH,
+        text=_NOTICE,
+        fontsize=5.8,
+        color=theme.MUTED,
+        linespacing=1.42,
+        wrap_chars=164,
+    )
+
+    # --- About Unravel — proper section stacked above the notice ---
+    btn_gap = 0.02
+    btn_w = (COL_WIDTH - btn_gap) / 2
+
+    about_line_h = (7.5 * 1.45 / 72.0) / theme.PAGE_H_IN
+    n_about = textwrap.fill(_ABOUT, width=_ABOUT_WRAP).count("\n") + 1
+
+    # Inline book-a-call prompt — sits *below* the further-materials buttons;
+    # the whole line links to the booking page.
+    contact_text = (
+        "Have further questions? Book a call with our team "
+        "— unravel.finance/booking"
+    )
+    contact_line_h = (7.5 * 1.4 / 72.0) / theme.PAGE_H_IN
+    contact_top = notice_head_y + 0.014 + contact_line_h
+    buttons_y = contact_top + 0.010
+    about_body_top = buttons_y + BTN_H + 0.012 + n_about * about_line_h
+    about_head_y = about_body_top + 0.022
+
+    _section_rule(fig, about_head_y, "ABOUT UNRAVEL")
+    fig.text(
+        MARGIN_X,
+        about_body_top,
+        textwrap.fill(_ABOUT, width=_ABOUT_WRAP),
+        fontsize=7.5,
+        color=theme.SUB_INK,
+        va="top",
+        linespacing=1.45,
+    )
+
+    draw_link_button(
+        fig,
+        MARGIN_X,
+        buttons_y,
+        btn_w,
+        "View this factor on unravel.finance",
+        factor.detail_url,
+        primary=True,
+    )
+    notebook_label = (
+        "Replication notebook — full AlphaLens analysis"
+        if factor.has_factor_notebook
+        else "Replication notebook — backtest in AlphaLens"
+    )
+    draw_link_button(
+        fig,
+        MARGIN_X + btn_w + btn_gap,
+        buttons_y,
+        btn_w,
+        notebook_label,
+        factor.notebook_url,
+        primary=False,
+    )
+    contact = fig.text(
+        MARGIN_X,
+        contact_top,
+        contact_text,
+        fontsize=7.5,
+        color=theme.ACCENT,
+        weight="semibold",
+        va="top",
+    )
+    contact.set_url(BOOKING_URL)
+
+
+def _percent_formatter(ax: plt.Axes, axis: str = "y") -> None:
+    """Format an axis as percent, with the real minus sign."""
+    fmt = mtick.PercentFormatter(decimals=0)
+    getattr(ax, f"{axis}axis").set_major_formatter(fmt)
+
+
+def _strip_top_right(ax: plt.Axes) -> None:
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_color(theme.HAIR)
+    ax.spines["bottom"].set_color(theme.HAIR)
+
+
+# ---- AlphaLens helpers ------------------------------------------------------
+
+# We always pin the analysis to the 1-day forward return — that's the
+# non-overlapping series, the one AlphaLens' default cumulative_returns()
+# treats as `cumprod` without smoothing, and the one our daily-rebalanced
+# illustrative portfolio uses on page 1.
+PERIOD = "1D"
+
+
+def _forward_return_period(clean: pd.DataFrame) -> str:
+    """Return the column name to use as the forward-return — '1D' if AlphaLens
+    produced it, otherwise the shortest forward-return column available."""
+    fwd_cols = list(alphalens.utils.get_forward_returns_columns(clean.columns))
+    if PERIOD in fwd_cols:
+        return PERIOD
+    # Sort by the numeric prefix so we get the shortest period.
+    def _days(col: str) -> int:
+        try:
+            return int(str(col).rstrip("D"))
+        except ValueError:
+            return 10**9
+
+    return sorted(fwd_cols, key=_days)[0]
+
+
+def _mean_ic(clean: pd.DataFrame, period: str) -> float:
+    ic = alphalens.performance.factor_information_coefficient(clean)
+    return float(ic[period].mean())
+
+
+# ---- Charts -----------------------------------------------------------------
+
+
+def _plot_mean_return_by_quantile(ax: plt.Axes, clean: pd.DataFrame) -> None:
+    """Overall mean forward return by quantile across all forward-return periods.
+
+    Grouped bars per quantile, one colour per period (1D, 5D, 10D) — matches
+    AlphaLens' plot_quantile_returns_bar exactly. `demeaned=True` so the bars
+    are the alpha contribution, not raw absolute returns.
+    """
+    mean_q, _ = alphalens.performance.mean_return_by_quantile(
+        clean, by_date=False, demeaned=True
+    )
+    # mean_return_by_quantile returns *cumulative* period returns, so the 5D
+    # and 10D bars would otherwise be ~5x/10x the 1D bars. Convert each to
+    # the equivalent per-shortest-period (here 1D) rate so the periods are
+    # comparable — this mirrors AlphaLens' own tear sheets.
+    mean_q = mean_q.apply(
+        alphalens.utils.rate_of_return, axis=0, base_period=mean_q.columns[0]
+    )
+    periods = [c for c in mean_q.columns if str(c).endswith("D")]
+    if not periods:
+        periods = list(mean_q.columns)
+
+    quantiles = list(mean_q.index)
+    n_q = len(quantiles)
+    n_p = len(periods)
+    # Thinner bar group (~0.55 of the slot) so there are clear gaps between
+    # quantile buckets.
+    group_w = 0.55
+    bar_w = group_w / max(n_p, 1)
+    x_base = np.arange(n_q)
+    # On-brand accent shades — darkest = shortest (most weighted) period.
+    shades = accent_ramp(n_p)
+    for i, period in enumerate(periods):
+        offset = (i - (n_p - 1) / 2) * bar_w
+        ax.bar(
+            x_base + offset,
+            mean_q[period].values * 1e4,  # → bps
+            width=bar_w,
+            color=shades[i],
+            edgecolor="none",
+            label=str(period),
+        )
+    # Bolder zero line — the reference axis the bars are read against.
+    ax.axhline(0, color=theme.SUB_INK, linewidth=1.1, zorder=1)
+    ax.set_xticks(x_base)
+    ax.set_xticklabels([str(q) for q in quantiles])
+    ax.set_xlim(-0.5, n_q - 0.5)  # bars span the full panel width
+    ax.margins(y=0.02)
+    ax.set_title(
+        "Mean Forward Return by Quantile  ·  demeaned",
+        loc="left",
+        color=theme.INK,
+    )
+    ax.set_xlabel("Quantile  (1 = lowest factor value, 5 = highest)")
+    ax.set_ylabel("Alpha (bps / day)")
+    ax.legend(loc="upper left", fontsize=7, ncol=n_p)
+    ax.grid(axis="y", linewidth=0.4, alpha=0.6)
+    _strip_top_right(ax)
+
+
+def _plot_ic_with_stats(ax: plt.Axes, clean: pd.DataFrame) -> None:
+    """Daily IC time-series with 21-day MA and the long-run mean as a baseline."""
+    period = _forward_return_period(clean)
+    ic = alphalens.performance.factor_information_coefficient(clean)[period]
+    rolling = ic.rolling(21, min_periods=5).mean()
+    mean_ic = float(ic.mean())
+    std_ic = float(ic.std())
+    ir = mean_ic / std_ic if std_ic > 0 else float("nan")
+    hit_rate = float((ic.dropna() > 0).mean())
+
+    ax.bar(
+        ic.index,
+        ic.values,
+        color=theme.HAIR,
+        edgecolor="none",
+        width=2.0,
+        zorder=1,
+    )
+    # 21-day moving average — visual stability cue.
+    ax.plot(
+        rolling.index,
+        rolling.values,
+        color=theme.ACCENT,
+        linewidth=1.4,
+        zorder=2,
+        label="21-day MA",
+    )
+    # Mean IC as a horizontal reference — standard AlphaLens IC plot.
+    ax.axhline(
+        mean_ic,
+        color=theme.INK,
+        linewidth=0.9,
+        linestyle=(0, (3, 2)),
+        zorder=3,
+        label=f"Mean  {metrics.fmt_ratio(mean_ic, 4)}",
+    )
+    ax.axhline(0, color=theme.HAIR, linewidth=0.6)
+    ax.set_ylabel("IC")
+    # Scale to the 21-day MA's own range (plus the zero and mean references)
+    # so the smoothed signal uses the full panel height and its shape is
+    # amplified, rather than being flattened by the noisy daily-IC spikes.
+    ma = rolling.dropna()
+    lo = min(float(ma.min()), 0.0, mean_ic) if not ma.empty else -0.1
+    hi = max(float(ma.max()), 0.0, mean_ic) if not ma.empty else 0.1
+    pad = max((hi - lo) * 0.12, 0.005)
+    ax.set_ylim(lo - pad, hi + pad)
+    ax.grid(axis="y", linewidth=0.4, alpha=0.6)
+    ax.legend(loc="upper right", fontsize=7)
+    _strip_top_right(ax)
+    _set_year_ticks(ax)
+
+    stats_line = (
+        f"Mean {metrics.fmt_ratio(mean_ic, 4)}  ·  "
+        f"Std {metrics.fmt_ratio(std_ic, 4)}  ·  "
+        f"IR {metrics.fmt_ratio(ir, 2)}  ·  "
+        f"{metrics.fmt_pct(hit_rate)} positive  ·  {period}"
+    )
+    ax.set_title(
+        "Information Coefficient (Spearman)",
+        loc="left",
+        color=theme.INK,
+        pad=18,
+    )
+    ax.text(
+        0.0,
+        1.02,
+        stats_line,
+        transform=ax.transAxes,
+        fontsize=8,
+        color=theme.SUB_INK,
+        va="bottom",
+        ha="left",
+    )
+
+
+def _quantile_daily_returns(clean: pd.DataFrame) -> tuple[pd.DataFrame, str]:
+    """AlphaLens' canonical per-date / per-quantile mean (demeaned) forward
+    returns. Returns a wide DataFrame indexed by date, columns are quantiles,
+    plus the period name we used."""
+    period = _forward_return_period(clean)
+    mean_quant_daily, _ = alphalens.performance.mean_return_by_quantile(
+        clean, by_date=True, demeaned=True
+    )
+    by_q = mean_quant_daily[period].unstack(level="factor_quantile")
+    return by_q, period
+
+
+def _plot_cumulative_quantile_returns(ax: plt.Axes, clean: pd.DataFrame) -> None:
+    """Cumulative-return path per quantile, using AlphaLens' cumulative_returns
+    helper so the math is identical to AlphaLens' plot_cumulative_returns_by_quantile.
+
+    Log-scale y-axis — AlphaLens uses the same convention for this chart so
+    that strong-spread factors don't squish Q2/Q3/Q4 against the x-axis when
+    Q5 compounds to a large multiple (or Q1 collapses to a fraction).
+    """
+    by_q, period = _quantile_daily_returns(clean)
+    cum = by_q.apply(alphalens.performance.cumulative_returns)
+    colors = quantile_palette(cum.shape[1])
+    for i, q in enumerate(cum.columns):
+        ax.plot(
+            cum.index,
+            cum[q].values,
+            label=f"Q{q}",
+            linewidth=1.2,
+            color=colors[i],
+        )
+    ax.set_yscale("log")
+    # Readable multiple labels (…0.5×, 1×, 2×, 5×…) instead of the bare
+    # 10^0 default, so the actual growth/decay of each quantile is legible.
+    ax.yaxis.set_major_locator(
+        mtick.LogLocator(base=10.0, subs=(1.0, 2.0, 5.0))
+    )
+    ax.yaxis.set_minor_locator(
+        mtick.LogLocator(base=10.0, subs=(2, 3, 4, 5, 6, 7, 8, 9))
+    )
+    ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda v, _p: f"{v:g}×"))
+    ax.yaxis.set_minor_formatter(mtick.NullFormatter())
+    ax.axhline(1.0, color=theme.HAIR, linewidth=0.5)
+    ax.set_title(
+        f"Cumulative Alpha by Quantile  ·  demeaned, {period}",
+        loc="left",
+        color=theme.INK,
+    )
+    ax.set_ylabel("Growth of 1.00  (log scale)")
+    ax.grid(axis="y", linewidth=0.4, alpha=0.6)
+    ax.legend(loc="upper left", ncol=len(cum.columns), fontsize=7, columnspacing=1.2)
+    _strip_top_right(ax)
+    _set_year_ticks(ax)
+
+
+def _empty_quant_page(factor: Factor, reason: str) -> plt.Figure:
+    fig = theme.new_page()
+    _draw_header(fig, factor, 2)
+    fig.text(
+        0.5,
+        0.5,
+        f"Quantitative analysis unavailable\n\n{reason}",
+        fontsize=11,
+        color=theme.MUTED,
+        ha="center",
+        va="center",
+    )
+    return fig
+
+
+def render_page_two(
+    factor: Factor, factor_data: pd.DataFrame, prices: pd.DataFrame
+) -> plt.Figure:
+    try:
+        clean = clean_factor_data(factor_data, prices)
+    except Exception as exc:  # noqa: BLE001
+        return _empty_quant_page(factor, f"AlphaLens preparation failed: {exc}")
+
+    fig = theme.new_page()
+    _draw_header(fig, factor, 2)
+
+    # Three full-width rows: quantile bars, cumulative-by-quantile, IC.
+    # Stops above 0.30 so the Notice & Disclaimer block has room below.
+    gs = GridSpec(
+        nrows=3,
+        ncols=1,
+        figure=fig,
+        left=MARGIN_X,
+        right=RIGHT_X,
+        top=0.803,
+        bottom=0.345,
+        hspace=0.52,
+        height_ratios=[1.18, 1.18, 0.64],
+    )
+
+    plotters = [
+        (gs[0, 0], _plot_mean_return_by_quantile, "Quantile means"),
+        (gs[1, 0], _plot_cumulative_quantile_returns, "Cumulative quantile"),
+        (gs[2, 0], _plot_ic_with_stats, "IC"),
+    ]
+    for slot, fn, label in plotters:
+        ax = fig.add_subplot(slot)
+        try:
+            fn(ax, clean)
+        except Exception as exc:  # noqa: BLE001
+            ax.axis("off")
+            ax.text(
+                0.5,
+                0.5,
+                f"{label} unavailable: {exc}",
+                ha="center",
+                va="center",
+                fontsize=8,
+                color=theme.MUTED,
+            )
+
+    _draw_about_and_notice(fig, factor)
+    return fig
