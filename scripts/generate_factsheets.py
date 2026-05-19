@@ -43,8 +43,9 @@ from scripts.factsheet.page_two import charts_bbox, render_page_two  # noqa: E40
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FACTSHEETS_DIR = REPO_ROOT / "factsheets"
 # Per-factor page-2 (AlphaLens) thumbnail, referenced by the web app's
-# "Factor Analysis" resource card.
-PREVIEWS_DIR = FACTSHEETS_DIR / "previews"
+# "Factor Analysis" resource card. Kept alongside the notebook-derived
+# cards in notebooks/preview/ rather than next to the PDFs.
+PREVIEWS_DIR = REPO_ROOT / "notebooks" / "preview"
 
 
 def _fetch_factor_inputs(
