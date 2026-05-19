@@ -67,7 +67,3 @@ jupyter notebook get_live_weights.ipynb               # current allocations
 
 For the full list of portfolios and parameters, see the
 [Unravel catalog](https://unravel.finance/portfolios).
-
-## License
-
-MIT — see [LICENSE](LICENSE).
