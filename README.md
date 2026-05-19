@@ -9,7 +9,7 @@ API: per-factor analysis, portfolio backtesting, and live weights.
 analysis for every Unravel cross-sectional factor.
 
 GitHub renders every notebook in your browser — just click a **Notebook**
-link below. To run or modify one yourself, complete [Setup](#setup) then
+link below. To run or modify one yourself, complete [Setup](#run-the-notebooks-setup) then
 open it in Jupyter, e.g.
 `jupyter notebook notebooks/factor_analysis_altair.ipynb`.
 
