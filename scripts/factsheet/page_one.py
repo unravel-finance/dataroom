@@ -18,6 +18,8 @@ from __future__ import annotations
 import textwrap
 from datetime import date as _date
 
+from typing import Union
+
 import alphalens
 import matplotlib.dates as _mdates
 import matplotlib.pyplot as plt
@@ -30,6 +32,13 @@ from scripts.factsheet import metrics, theme
 from scripts.factsheet.branding import accent_by_magnitude, draw_brand
 from scripts.factsheet.buttons import draw_link_button
 from scripts.factsheet.justify import _render_justified_block
+from scripts.portfolios_catalog import Portfolio
+
+# Page 1 is shared between single-factor (Factor) and multi-factor (Portfolio)
+# tear sheets; both expose the minimal attribute set this module uses
+# (name, effect, short_description, long_description, default_universe,
+# returns_csv_url, is_multi_factor).
+Asset = Union[Factor, Portfolio]
 
 MARGIN_X = 0.07
 RIGHT_X = 1.0 - MARGIN_X
@@ -59,7 +68,7 @@ def _hline(fig: plt.Figure, y: float, *, lw: float = 0.6, color: str | None = No
 # ---------- header ------------------------------------------------------------
 
 
-def _draw_header(fig: plt.Figure, factor: Factor, page: int) -> None:
+def _draw_header(fig: plt.Figure, factor: Asset, page: int) -> None:
     draw_brand(fig, MARGIN_X)
     fig.text(
         RIGHT_X,
@@ -117,7 +126,7 @@ def _balanced_two_lines(name: str) -> str:
     return " ".join(words[:best_i]) + "\n" + " ".join(words[best_i:])
 
 
-def _draw_title(fig: plt.Figure, factor: Factor, right_limit: float) -> float:
+def _draw_title(fig: plt.Figure, factor: Asset, right_limit: float) -> float:
     """Big factor name, top-left. Never collides with whatever sits to its
     right (the top-right quantile mini chart): shrink to fit, then wrap to
     two lines if a single line would have to get too small. Returns the
@@ -152,7 +161,7 @@ def _draw_title(fig: plt.Figure, factor: Factor, right_limit: float) -> float:
 
 
 def _draw_hero(
-    fig: plt.Figure, factor: Factor, clean: pd.DataFrame | None
+    fig: plt.Figure, factor: Asset, clean: pd.DataFrame | None
 ) -> float:
     """Draw title + subtitle (+ mini chart). Returns the subtitle's bottom
     edge (figure fraction) so the caller can flow the overview beneath it."""
@@ -236,7 +245,7 @@ def _draw_top_right_quantile_bars(fig: plt.Figure, clean: pd.DataFrame) -> None:
     ax.spines["bottom"].set_linewidth(0.5)
 
 
-def _draw_overview(fig: plt.Figure, factor: Factor, y_top: float) -> None:
+def _draw_overview(fig: plt.Figure, factor: Asset, y_top: float) -> None:
     """Two justified columns of the long description, paragraphs balanced by
     rough line count."""
     paragraphs = [
@@ -547,16 +556,56 @@ def _draw_cumulative_chart(
 # ---------- disclaimer + about + footer ---------------------------------------
 
 
-def _draw_disclaimer(fig: plt.Figure, factor: Factor) -> None:
-    # Short illustrative-portfolio note (the full Notice & Disclaimer and the
-    # About Unravel block live on page 2).
-    note = (
+def _section_copy(factor: Asset) -> tuple[str, str]:
+    """Section eyebrow + sub-label copy describing what the cumulative chart
+    below represents. Diverges for single- vs. multi-factor portfolios:
+    single-factor is an illustrative bucket-sort backtest, multi-factor is
+    the actual portfolio we run."""
+    if factor.is_multi_factor:
+        n = len(getattr(factor, "components", ()) or ())
+        n_text = f"{n} orthogonal factors" if n else "multiple orthogonal factors"
+        return (
+            f"Top {factor.default_universe} cross-sectional multi-factor portfolio",
+            (
+                f"Blends {n_text} into a single diversified return stream "
+                f"across the rolling Top {factor.default_universe} universe "
+                "(point-in-time). Asset positions are sized by inverse "
+                "rolling volatility; rebalanced daily."
+            ),
+        )
+    return (
+        f"Example Top {factor.default_universe} cross-sectional portfolio",
+        (
+            "Long and short the dynamic, rolling Top "
+            f"{factor.default_universe} universe (point-in-time), "
+            "sized by the factor's cross-sectional strength. "
+            "Rebalanced daily."
+        ),
+    )
+
+
+def _disclaimer_note(factor: Asset) -> str:
+    if factor.is_multi_factor:
+        return (
+            f"Note — Performance is for the {factor.name} multi-factor portfolio "
+            f"(component factors blended and rescaled across the Top "
+            f"{factor.default_universe} universe, rebalanced daily); "
+            "demonstrative only, not a tradable product. Past performance is "
+            "not indicative of future results."
+        )
+    return (
         "Note — Performance is for an illustrative single-factor portfolio "
         f"(positions sized proportionally to the factor signal across the "
         f"Top {factor.default_universe} universe, rebalanced daily); "
         "demonstrative only, not a tradable product. Past performance is "
         "not indicative of future results."
     )
+
+
+def _draw_disclaimer(fig: plt.Figure, factor: Asset) -> None:
+    # Short illustrative-portfolio note (the full Notice & Disclaimer and the
+    # About Unravel block live on page 2).
+    note = _disclaimer_note(factor)
     fig.text(
         MARGIN_X,
         0.052,
@@ -573,7 +622,7 @@ def _draw_disclaimer(fig: plt.Figure, factor: Factor) -> None:
 
 
 def render_page_one(
-    factor: Factor,
+    factor: Asset,
     returns: pd.Series,
     stats: metrics.Stats,
     clean: pd.DataFrame | None = None,
@@ -595,16 +644,12 @@ def render_page_one(
     overview_top = min(0.790, subtitle_bottom - 0.024)
     _draw_overview(fig, factor, y_top=overview_top)
 
+    section_label, section_sub_label = _section_copy(factor)
     _draw_section_eyebrow(
         fig,
         y=0.520,
-        label=f"Example Top {factor.default_universe} cross-sectional portfolio",
-        sub_label=(
-            "Long and short the dynamic, rolling Top "
-            f"{factor.default_universe} universe (point-in-time), "
-            "sized by the factor's cross-sectional strength. "
-            "Rebalanced daily."
-        ),
+        label=section_label,
+        sub_label=section_sub_label,
         # Narrow wrap so the 2-line caption stays on the left, clear of the
         # download button sharing the header row.
         sub_label_wrap=72,
