@@ -94,12 +94,20 @@ jobs:
       - name: Generate portfolio PDF factsheets
         run: python -m scripts.generate_portfolio_factsheets
 
+      - name: Generate per-portfolio replication notebooks
+        # No --execute here — the notebook is meant to be runnable by
+        # readers (it calls the Unravel API + alphalens) and we don't
+        # want CI to slow the factsheet refresh down. The CI for the
+        # factor notebooks runs in a separate workflow.
+        run: python -m scripts.generate_portfolio_notebooks
+
       - name: Show generated artefacts
         run: |
           echo "Returns:"; ls -lh data/portfolio-40-returns || true
           echo; echo "Factor data:"; ls -lh data/raw-factors || true
           echo; echo "Factsheets:"; ls -lh factsheets || true
           echo; echo "Previews:"; ls -lh notebooks/preview || true
+          echo; echo "Portfolio notebooks:"; ls -lh notebooks/portfolio_replication_*.ipynb || true
 
       - name: Upload artefacts
         uses: actions/upload-artifact@v4
@@ -110,6 +118,7 @@ jobs:
             data/raw-factors
             factsheets
             notebooks/preview
+            notebooks/portfolio_replication_*.ipynb
           if-no-files-found: error
 
       - name: Commit refreshed data back to the branch
@@ -118,7 +127,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # Stage before the diff check so first-run untracked dirs count.
-          git add data/ factsheets/ notebooks/preview/
+          # README.md picks up the regenerated portfolio table; the
+          # portfolio_replication_*.ipynb files are the per-portfolio
+          # notebook substitutions.
+          git add data/ factsheets/ notebooks/preview/ notebooks/portfolio_replication_*.ipynb README.md
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
@@ -140,6 +152,8 @@ jobs:
             data/
             factsheets/
             notebooks/preview/
+            notebooks/portfolio_replication_*.ipynb
+            README.md
           commit-message: "chore(Sales): Refresh factsheet CSVs and PDFs"
           title: "chore(Sales): Weekly factsheet data refresh"
           body: |

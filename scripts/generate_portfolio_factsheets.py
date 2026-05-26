@@ -51,41 +51,10 @@ FACTSHEETS_DIR = REPO_ROOT / "factsheets"
 # single-factor pipeline so the web "Portfolio Analysis" card can render
 # the same way regardless of asset type.
 PREVIEWS_DIR = REPO_ROOT / "notebooks" / "preview"
-README = REPO_ROOT / "README.md"
-_TABLE_BEGIN = "<!-- BEGIN PORTFOLIO TABLE"
-_TABLE_END = "<!-- END PORTFOLIO TABLE -->"
 
-
-def _portfolio_table(portfolios: list[Portfolio]) -> str:
-    rows = "\n".join(
-        f"| [{p.name}]({p.detail_url}) "
-        f"| [PDF](factsheets/{p.id}.pdf) "
-        f"| [CSV]({p.returns_csv_url}) |"
-        for p in portfolios
-    )
-    return (
-        "| Portfolio | Factsheet | Portfolio returns |\n"
-        "| --- | --- | --- |\n"
-        f"{rows}"
-    )
-
-
-def update_root_readme(portfolios: list[Portfolio]) -> None:
-    """Replace the README's portfolio table block in-place. No-op if the
-    markers aren't present (allows the README to drop the table without
-    breaking the generator)."""
-    if not README.exists():
-        return
-    text = README.read_text()
-    try:
-        begin_eol = text.index("\n", text.index(_TABLE_BEGIN)) + 1
-        end = text.index(_TABLE_END, begin_eol)
-    except ValueError:
-        return
-    README.write_text(
-        text[:begin_eol] + _portfolio_table(portfolios) + "\n" + text[end:]
-    )
-    print("  updated README.md portfolio table")
+# The README portfolio table is owned by scripts.generate_portfolio_notebooks
+# (it carries the notebook link in addition to the factsheet/CSV columns,
+# mirroring how scripts.generate_factor_notebooks owns the factor table).
 
 
 def _fetch_portfolio_inputs(
@@ -185,11 +154,6 @@ def main(argv: list[str]) -> int:
         if err:
             failures.append(portfolio_id)
             print(f"  ✗ {portfolio_id} failed: {err}", file=sys.stderr)
-
-    # README table always reflects the full catalog (regardless of any
-    # per-portfolio subset passed on argv) so it stays authoritative.
-    from scripts.portfolios_catalog import load_portfolios
-    update_root_readme(load_portfolios())
 
     if failures:
         print(f"\nFailed: {sorted(failures)}", file=sys.stderr)
