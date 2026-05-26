@@ -429,7 +429,7 @@ def _draw_performance_band(
         ha="right",
         va="top",
     )
-    gr = metrics.gross_return_by_window(returns)
+    cagr = metrics.cagr_by_window(returns)
     ann = metrics.annual_returns(returns)
     ann_labels = sorted(
         ann, key=lambda k: (k == "YTD", k)
@@ -439,10 +439,10 @@ def _draw_performance_band(
         y_top,
         [
             {
-                "title": "Gross Rate of Return",
+                "title": "CAGR (annualised)",
                 "weight": 5,
                 "cols": [
-                    (lbl, metrics.fmt_pct(gr[lbl]))
+                    (lbl, metrics.fmt_pct(cagr[lbl]))
                     for lbl in ("1M", "3M", "1Y", "3Y", "5Y")
                 ],
             },
@@ -456,7 +456,7 @@ def _draw_performance_band(
             {
                 "title": "Since Inception",
                 "weight": 1.5,
-                "cols": [("SI", metrics.fmt_pct(gr["SI"]))],
+                "cols": [("SI", metrics.fmt_pct(cagr["SI"]))],
             },
         ],
     )

@@ -110,6 +110,33 @@ def gross_return_by_window(returns: pd.Series) -> dict[str, float]:
     return out
 
 
+def cagr_by_window(returns: pd.Series) -> dict[str, float]:
+    """Annualised compound return per trailing window; NaN when history is
+    too short. Crypto trades 24/7 so annualising on calendar days matches
+    realised vol's TRADING_DAYS=365 convention."""
+    r = returns.dropna()
+    span_days = (r.index[-1] - r.index[0]).days
+    out: dict[str, float] = {}
+    for label, days in _RETURN_WINDOWS:
+        if days is not None and days > span_days + 1:
+            out[label] = float("nan")
+            continue
+        w = _window_slice(r, days)
+        if w.empty:
+            out[label] = float("nan")
+            continue
+        total = float((1.0 + w).prod())
+        # Use the actual observed span of the window — guards against
+        # nominal vs. realised mismatches at the edges (e.g. SI of a
+        # series that started mid-year).
+        window_days = (w.index[-1] - w.index[0]).days
+        if window_days <= 0 or total <= 0:
+            out[label] = float("nan")
+            continue
+        out[label] = total ** (TRADING_DAYS / window_days) - 1.0
+    return out
+
+
 def annual_returns(returns: pd.Series) -> dict[str, float]:
     """Calendar-year compound returns; the last (partial) year is YTD."""
     r = returns.dropna()

@@ -342,14 +342,28 @@ def _plot_monthly_heatmap(ax: plt.Axes, returns: pd.Series) -> None:
     vmax = float(np.nanmax(np.abs(values))) if values.size else 0.0
     vmax = vmax if vmax > 0 else 0.01
 
-    im = ax.imshow(
+    # pcolormesh + edgecolors="face" keeps adjacent cells flush — imshow
+    # leaves sub-pixel seams in PDF vector output that read as faint
+    # gridlines across the heatmap. rasterized=True flattens the patch
+    # collection so the seams can't sneak back in at print time.
+    n_rows, n_cols = values.shape
+    x_edges = np.arange(n_cols + 1) - 0.5
+    y_edges = np.arange(n_rows + 1) - 0.5
+    mesh = ax.pcolormesh(
+        x_edges,
+        y_edges,
         values,
-        aspect="auto",
         cmap=_HEATMAP_CMAP,
         vmin=-vmax,
         vmax=vmax,
-        interpolation="nearest",
+        shading="flat",
+        edgecolors="face",
+        linewidth=0,
+        rasterized=True,
     )
+    ax.invert_yaxis()
+    ax.set_xlim(x_edges[0], x_edges[-1])
+    ax.set_ylim(y_edges[-1], y_edges[0])
     ax.set_xticks(range(12))
     ax.set_xticklabels(
         ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -358,6 +372,10 @@ def _plot_monthly_heatmap(ax: plt.Axes, returns: pd.Series) -> None:
     ax.set_yticks(range(len(pivot.index)))
     ax.set_yticklabels([str(y) for y in pivot.index])
     ax.tick_params(axis="both", which="both", length=0, labelsize=7)
+    # Belt-and-suspenders: the theme's rcParams configure grid styling
+    # for other panels; explicitly disable it here so nothing can render
+    # over the cells.
+    ax.grid(False, which="both")
     for spine in ax.spines.values():
         spine.set_visible(False)
     # Cell labels — small, only when there's a value.
@@ -388,7 +406,7 @@ def _plot_monthly_heatmap(ax: plt.Axes, returns: pd.Series) -> None:
     # Slim colourbar to the right — anchored to the axes so it doesn't
     # collide with the panel border.
     cbar = ax.figure.colorbar(
-        im, ax=ax, pad=0.012, fraction=0.018, aspect=22
+        mesh, ax=ax, pad=0.012, fraction=0.018, aspect=22
     )
     cbar.outline.set_visible(False)
     cbar.ax.tick_params(labelsize=6, length=0, colors=theme.MUTED)
