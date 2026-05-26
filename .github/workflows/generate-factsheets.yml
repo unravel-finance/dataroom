@@ -19,6 +19,9 @@ on:
   push:
     branches:
       - main
+      # TEMPORARY: iterate on the new multi-factor portfolio pipeline on
+      # every commit. Remove this branch entry before merging PR #29.
+      - claude/determined-ramanujan-YCitT
 
 permissions:
   contents: write
@@ -74,11 +77,22 @@ jobs:
             echo "factors=" >> "$GITHUB_OUTPUT"
           fi
 
+      # TEMPORARY: factor scripts didn't change in PR #29, so we skip
+      # regenerating them on the PR branch to keep the iteration loop on
+      # the portfolio pipeline tight. Remove this guard before merging.
       - name: Export CSVs (returns + factor data)
+        if: ${{ github.ref_name != 'claude/determined-ramanujan-YCitT' }}
         run: python -m scripts.export_data ${{ steps.scope.outputs.factors }}
 
       - name: Generate PDF factsheets
+        if: ${{ github.ref_name != 'claude/determined-ramanujan-YCitT' }}
         run: python -m scripts.generate_factsheets ${{ steps.scope.outputs.factors }}
+
+      - name: Export portfolio returns CSVs
+        run: python -m scripts.export_portfolio_returns
+
+      - name: Generate portfolio PDF factsheets
+        run: python -m scripts.generate_portfolio_factsheets
 
       - name: Show generated artefacts
         run: |
