@@ -357,16 +357,33 @@ def _draw_table_band(
     y_top: float,
     groups: list[dict],
     *,
-    gap: float = 0.020,
+    inter_group_gap: float = 0.028,
 ) -> None:
-    """Draw a horizontal band of grouped mini-tables (institutional-factsheet
-    style). Each group: {'title': str, 'cols': [(header, value), ...],
-    'weight': float}. Layout per group: title → rule → column headers →
-    values → rule."""
+    """Draw a horizontal band of grouped mini-tables.
+
+    Layout mirrors the site's PerformanceSummaryTable (post-#562 on
+    unravel-router): content-driven cell sizing instead of arbitrary
+    per-group weight ratios. The page's available width is divided into
+    equal cell slots based on the band's total cell count, groups are
+    sized to (num_cells × cell_slot), and an inter-group gap separates
+    them. A group whose cell count is short of the budget ends before
+    the right margin — same as the site's flex-wrap behaviour, where
+    bands don't stretch to fill if they don't have to.
+
+    Cell shape:
+        ``(header, value)``                     — default 1 unit wide
+        ``(header, value, min_units: float)``   — wider slot, e.g. for
+                                                   YYYY-MM-DD dates.
+    """
     total_w = RIGHT_X - MARGIN_X
-    n = len(groups)
-    avail = total_w - gap * (n - 1)
-    sum_w = sum(g["weight"] for g in groups)
+    n_groups = len(groups)
+
+    def _cell_units(col: tuple) -> float:
+        return float(col[2]) if len(col) >= 3 else 1.0
+
+    total_units = sum(_cell_units(c) for g in groups for c in g["cols"])
+    avail = total_w - inter_group_gap * max(n_groups - 1, 0)
+    unit_w = avail / total_units if total_units else 0.0
 
     title_y = y_top
     rule1_y = y_top - 0.014
@@ -376,7 +393,8 @@ def _draw_table_band(
 
     x = MARGIN_X
     for g in groups:
-        gw = avail * g["weight"] / sum_w
+        cols = g["cols"]
+        gw = sum(_cell_units(c) for c in cols) * unit_w
         fig.text(
             x,
             title_y,
@@ -389,25 +407,27 @@ def _draw_table_band(
         fig.add_artist(
             plt.Line2D([x, x + gw], [rule1_y, rule1_y], color=theme.HAIR, linewidth=0.6)
         )
-        cols = g["cols"]
-        cw = gw / len(cols)
-        for j, (hdr, val) in enumerate(cols):
-            cx = x + j * cw + cw / 2
+        cx = x
+        for col in cols:
+            hdr, val = col[0], col[1]
+            cw = _cell_units(col) * unit_w
+            mid = cx + cw / 2
             fig.text(
-                cx, header_y, hdr, fontsize=6.5, color=theme.MUTED,
+                mid, header_y, hdr, fontsize=6.5, color=theme.MUTED,
                 ha="center", va="top",
             )
             # Body Mona Sans (not the Expanded display cut) at semibold:
             # the wide display face is hard to read for dense numerics and
             # doesn't column-align; semibold keeps the figures prominent.
             fig.text(
-                cx, value_y, val, fontsize=9, color=theme.INK,
+                mid, value_y, val, fontsize=9, color=theme.INK,
                 ha="center", va="center", weight="semibold",
             )
+            cx += cw
         fig.add_artist(
             plt.Line2D([x, x + gw], [rule2_y, rule2_y], color=theme.HAIR, linewidth=0.6)
         )
-        x += gw + gap
+        x += gw + inter_group_gap
 
 
 def _draw_performance_band(
@@ -441,9 +461,6 @@ def _draw_performance_band(
         [
             {
                 "title": "Cumulative Returns",
-                # 4 columns / 10 total slot units — same 4:6 split the
-                # site grid uses (grid-cols-[4fr_6fr]).
-                "weight": 4,
                 "cols": [
                     ("MTD", metrics.fmt_pct(cum["MTD"])),
                     ("Last Month", metrics.fmt_pct(cum["LastMonth"])),
@@ -453,7 +470,6 @@ def _draw_performance_band(
             },
             {
                 "title": "Annualised Returns (CAGR)",
-                "weight": 6,
                 "cols": [
                     (lbl, metrics.fmt_pct(cagr[lbl]))
                     for lbl in ("1M", "3M", "1Y", "3Y", "5Y", "SI")
@@ -482,8 +498,6 @@ def _draw_risk_band(
         [
             {
                 "title": "Realised Volatility (annualised)",
-                # Site uses grid-cols-[6fr_2fr] for this row.
-                "weight": 6,
                 "cols": [
                     (lbl, metrics.fmt_pct(vol[lbl]))
                     for lbl in ("1M", "3M", "1Y", "3Y", "5Y", "SI")
@@ -491,10 +505,18 @@ def _draw_risk_band(
             },
             {
                 "title": "Max Drawdown",
-                "weight": 2,
                 "cols": [
                     ("%", metrics.fmt_pct(mdd)),
-                    ("Date", mdd_date.strftime("%Y-%m-%d") if mdd_date else "—"),
+                    # Date string ("YYYY-MM-DD") is much wider than the
+                    # default %-style values — give it 1.4 slot units
+                    # so it doesn't crowd the % column. Mirrors the
+                    # site's natural cell-grows-to-content behaviour
+                    # (whitespace-nowrap on StatCell values).
+                    (
+                        "Date",
+                        mdd_date.strftime("%Y-%m-%d") if mdd_date else "—",
+                        1.4,
+                    ),
                 ],
             },
         ],
