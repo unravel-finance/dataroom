@@ -413,6 +413,10 @@ def _draw_table_band(
 def _draw_performance_band(
     fig: plt.Figure, returns: pd.Series, stats: metrics.Stats, y_top: float
 ) -> None:
+    """Two-group Performance band: calendar-anchored Cumulative Returns
+    (MTD / Last Month / YTD / 1Y) on the left, trailing CAGR
+    (1M / 3M / 1Y / 3Y / 5Y / SI) on the right. Mirrors the
+    PerformanceSummaryTable on the site's portfolio page."""
     fig.text(
         MARGIN_X, y_top + 0.022, "PERFORMANCE",
         fontsize=7, color=theme.MUTED, weight="semibold", va="top",
@@ -429,34 +433,31 @@ def _draw_performance_band(
         ha="right",
         va="top",
     )
+    cum = metrics.cumulative_returns_by_window(returns)
     cagr = metrics.cagr_by_window(returns)
-    ann = metrics.annual_returns(returns)
-    ann_labels = sorted(
-        ann, key=lambda k: (k == "YTD", k)
-    )  # years ascending, YTD last
     _draw_table_band(
         fig,
         y_top,
         [
             {
-                "title": "CAGR (annualised)",
-                "weight": 5,
+                "title": "Cumulative Returns",
+                # 4 columns / 10 total slot units — same 4:6 split the
+                # site grid uses (grid-cols-[4fr_6fr]).
+                "weight": 4,
+                "cols": [
+                    ("MTD", metrics.fmt_pct(cum["MTD"])),
+                    ("Last Month", metrics.fmt_pct(cum["LastMonth"])),
+                    ("YTD", metrics.fmt_pct(cum["YTD"])),
+                    ("1Y", metrics.fmt_pct(cum["1Y"])),
+                ],
+            },
+            {
+                "title": "Annualised Returns (CAGR)",
+                "weight": 6,
                 "cols": [
                     (lbl, metrics.fmt_pct(cagr[lbl]))
-                    for lbl in ("1M", "3M", "1Y", "3Y", "5Y")
+                    for lbl in ("1M", "3M", "1Y", "3Y", "5Y", "SI")
                 ],
-            },
-            {
-                "title": "Annual Performance (%)",
-                "weight": max(len(ann_labels), 3),
-                "cols": [
-                    (lbl, metrics.fmt_pct(ann[lbl])) for lbl in ann_labels
-                ],
-            },
-            {
-                "title": "Since Inception",
-                "weight": 1.5,
-                "cols": [("SI", metrics.fmt_pct(cagr["SI"]))],
             },
         ],
     )
@@ -465,12 +466,15 @@ def _draw_performance_band(
 def _draw_risk_band(
     fig: plt.Figure, returns: pd.Series, stats: metrics.Stats, y_top: float
 ) -> None:
+    """Risk Profile band: Realised Volatility (annualised) across the same
+    windows as CAGR, plus Max Drawdown (% + date). Matches the site's
+    Risk Profile card; Return-to-Risk Ratio is intentionally dropped to
+    stay aligned with the site's content."""
     fig.text(
-        MARGIN_X, y_top + 0.022, "RISK & RETURN PROFILE",
+        MARGIN_X, y_top + 0.022, "RISK PROFILE",
         fontsize=7, color=theme.MUTED, weight="semibold", va="top",
     )
     vol = metrics.realized_vol_by_window(returns)
-    rtr = metrics.return_to_risk_by_window(returns)
     mdd, mdd_date = metrics.max_drawdown_with_date(returns)
     _draw_table_band(
         fig,
@@ -478,23 +482,16 @@ def _draw_risk_band(
         [
             {
                 "title": "Realised Volatility (annualised)",
-                "weight": 4,
+                # Site uses grid-cols-[6fr_2fr] for this row.
+                "weight": 6,
                 "cols": [
                     (lbl, metrics.fmt_pct(vol[lbl]))
-                    for lbl in ("1M", "3M", "1Y", "3Y")
-                ],
-            },
-            {
-                "title": "Return-to-Risk Ratio",
-                "weight": 4,
-                "cols": [
-                    (lbl, metrics.fmt_ratio(rtr[lbl]))
-                    for lbl in ("1M", "3M", "1Y", "3Y")
+                    for lbl in ("1M", "3M", "1Y", "3Y", "5Y", "SI")
                 ],
             },
             {
                 "title": "Max Drawdown",
-                "weight": 2.4,
+                "weight": 2,
                 "cols": [
                     ("%", metrics.fmt_pct(mdd)),
                     ("Date", mdd_date.strftime("%Y-%m-%d") if mdd_date else "—"),

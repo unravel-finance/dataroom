@@ -338,7 +338,22 @@ def _plot_monthly_heatmap(ax: plt.Axes, returns: pd.Series) -> None:
     # Years descending — newest on top, common quant-tear-sheet convention.
     pivot = pivot.sort_index(ascending=False)
 
-    values = pivot.to_numpy(dtype=float)
+    months_only = pivot.to_numpy(dtype=float)
+    # Per-row compounded year total — same as the heatmap's right-most
+    # "Year" column on the site (yearlyReturnFromMonthly).
+    year_totals = np.array(
+        [
+            float(np.nanprod(1.0 + row) - 1.0)
+            if np.isfinite(row).any()
+            else float("nan")
+            for row in months_only
+        ],
+        dtype=float,
+    )
+    # Stack months + year-total into one matrix so the colour scale
+    # spans them together (matches the site's MonthlyReturnsHeatmap,
+    # which keys cell colour off the global maxAbs).
+    values = np.hstack([months_only, year_totals.reshape(-1, 1)])
     vmax = float(np.nanmax(np.abs(values))) if values.size else 0.0
     vmax = vmax if vmax > 0 else 0.01
 
@@ -364,10 +379,11 @@ def _plot_monthly_heatmap(ax: plt.Axes, returns: pd.Series) -> None:
     ax.invert_yaxis()
     ax.set_xlim(x_edges[0], x_edges[-1])
     ax.set_ylim(y_edges[-1], y_edges[0])
-    ax.set_xticks(range(12))
+    # 12 month ticks + a "Year" total column to the right.
+    ax.set_xticks(range(13))
     ax.set_xticklabels(
         ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Year"]
     )
     ax.set_yticks(range(len(pivot.index)))
     ax.set_yticklabels([str(y) for y in pivot.index])
@@ -378,8 +394,9 @@ def _plot_monthly_heatmap(ax: plt.Axes, returns: pd.Series) -> None:
     ax.grid(False, which="both")
     for spine in ax.spines.values():
         spine.set_visible(False)
-    # Cell labels — small, only when there's a value.
-    n_rows, n_cols = values.shape
+    # Cell labels — small, only when there's a value. The right-most
+    # ("Year") column is set semibold to read as a row total.
+    year_col = n_cols - 1
     for i in range(n_rows):
         for j in range(n_cols):
             v = values[i, j]
@@ -397,7 +414,11 @@ def _plot_monthly_heatmap(ax: plt.Axes, returns: pd.Series) -> None:
                 va="center",
                 fontsize=6.5,
                 color=tcolor,
+                weight="semibold" if j == year_col else "normal",
             )
+    # Hairline between the month grid and the Year column — same visual
+    # separation the site uses via column-level styling.
+    ax.axvline(year_col - 0.5, color=theme.HAIR, linewidth=0.8, zorder=4)
     ax.set_title(
         "Monthly Returns  ·  calendar-month, compounded",
         loc="left",
