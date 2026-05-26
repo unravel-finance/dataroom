@@ -350,11 +350,15 @@ def _plot_monthly_heatmap(ax: plt.Axes, returns: pd.Series) -> None:
         ],
         dtype=float,
     )
-    # Stack months + year-total into one matrix so the colour scale
-    # spans them together (matches the site's MonthlyReturnsHeatmap,
-    # which keys cell colour off the global maxAbs).
     values = np.hstack([months_only, year_totals.reshape(-1, 1)])
-    vmax = float(np.nanmax(np.abs(values))) if values.size else 0.0
+    # Key the colour scale to the **monthly** maxAbs only — mirrors the
+    # site's MonthlyReturnsHeatmap, which iterates `months` for maxAbs
+    # and lets year totals saturate at the extremes. Otherwise a single
+    # +180% / +228% compounding year flattens the whole colour ramp and
+    # individual monthly cells read as off-white.
+    vmax = (
+        float(np.nanmax(np.abs(months_only))) if months_only.size else 0.0
+    )
     vmax = vmax if vmax > 0 else 0.01
 
     # pcolormesh + edgecolors="face" keeps adjacent cells flush — imshow
@@ -539,7 +543,10 @@ def _plot_rolling_exposure(ax: plt.Axes, weights: pd.DataFrame | None) -> None:
     ax.axhline(0.0, color=theme.HAIR, linewidth=0.6)
     ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda v, _p: f"{v:.0f}%"))
     ax.set_title(
-        "Rolling Gross Exposure  ·  Σ|w|",
+        # No Σ in the title — Mona Sans (the bundled brand font) has no
+        # glyph for it, and matplotlib's missing-glyph fallback renders
+        # as a blank space so the subtitle reads "·   |w|" with a gap.
+        "Rolling Gross Exposure  ·  sum of absolute weights",
         loc="left",
         color=theme.INK,
     )
