@@ -102,6 +102,11 @@ jobs:
 
           Branch: ${GITHUB_REF_NAME}
           Triggered by: ${GITHUB_ACTOR}"
+          # Rebase before pushing — the sibling generate-factsheets
+          # workflow may have landed a data/factsheets/preview commit
+          # to the same ref while this one was running. The two
+          # workflows touch disjoint paths so rebase is conflict-free.
+          git pull --rebase origin "${GITHUB_REF_NAME}"
           git push origin "HEAD:${GITHUB_REF_NAME}"
 
       - name: Open PR with refreshed notebooks
