@@ -316,10 +316,11 @@ def _plot_mean_return_by_quantile(ax: plt.Axes, clean: pd.DataFrame) -> None:
     """Overall mean forward return by quantile across all forward-return periods.
 
     Grouped bars per quantile, one colour per period (1D, 5D, 10D) — matches
-    AlphaLens' plot_quantile_returns_bar exactly.
+    AlphaLens' plot_quantile_returns_bar exactly. `demeaned=True` so the bars
+    are the alpha contribution, not raw absolute returns.
     """
     mean_q, _ = alphalens.performance.mean_return_by_quantile(
-        clean, by_date=False, demeaned=False
+        clean, by_date=False, demeaned=True
     )
     # mean_return_by_quantile returns *cumulative* period returns, so the 5D
     # and 10D bars would otherwise be ~5x/10x the 1D bars. Convert each to
