@@ -64,12 +64,39 @@ _FACTORS_BLOCK_RE = re.compile(
     re.DOTALL,
 )
 
+# Matches the "Fetching historical (raw) factor data" intro: the
+# "consists of N proprietary cross-sectional factors:" sentence plus the
+# bulleted factor list right after it. The bullets follow Markdown link
+# syntax pointing at unravel.finance/portfolio/<id>; we substitute the
+# whole block (heading sentence + bullets) per portfolio.
+_FACTOR_LIST_RE = re.compile(
+    r"The portfolio consists of \d+ proprietary cross-sectional factors:\n"
+    r"((?:- \[[^\]]+\]\([^)]+\)\n?)+)",
+)
+
 
 def _factors_assignment(portfolio: Portfolio) -> str:
     """Render the ``factors = [...]`` list as the template formats it
     (one id per line, trailing comma) so the diff stays minimal."""
     body = "".join(f'    "{fid}",\n' for fid in portfolio.component_ids)
     return f"factors = [\n{body}]"
+
+
+def _factor_list_markdown(portfolio: Portfolio) -> str:
+    """Build the "consists of N factors: [bullets]" block for the
+    portfolio's actual components. Resolves IDs to names via
+    factors_catalog so the bullet labels match the live site."""
+    from scripts.factors_catalog import find_factor
+
+    factors = [find_factor(fid) for fid in portfolio.component_ids]
+    bullets = "\n".join(
+        f"- [{f.name}](https://unravel.finance/portfolio/{f.portfolio_id})"
+        for f in factors
+    )
+    return (
+        f"The portfolio consists of {len(factors)} proprietary "
+        f"cross-sectional factors:\n{bullets}\n"
+    )
 
 
 def _src_to_string(source) -> str:
@@ -95,11 +122,45 @@ def _substitute_factors(cell: dict, portfolio: Portfolio) -> bool:
         return False
     new_src = _FACTORS_BLOCK_RE.sub(_factors_assignment(portfolio), src_text, count=1)
     cell["source"] = _string_to_src(new_src)
-    # Drop any cached outputs/execution_count — they no longer match the
-    # parameters. The --execute path will refill them.
-    cell["outputs"] = []
-    cell["execution_count"] = None
     return True
+
+
+def _substitute_factor_list_markdown(cell: dict, portfolio: Portfolio) -> bool:
+    """If the markdown cell carries the template's hardcoded
+    "consists of N factors: [bullets]" block, rewrite it with the
+    portfolio's actual components. Without this the rendered intro
+    above the factor-fetching cell describes whatever portfolio the
+    template was last edited against, not the one this notebook
+    actually backtests."""
+    if cell.get("cell_type") != "markdown":
+        return False
+    src_text = _src_to_string(cell.get("source", ""))
+    if "The portfolio consists of" not in src_text:
+        return False
+    new_src, n = _FACTOR_LIST_RE.subn(
+        _factor_list_markdown(portfolio),
+        src_text,
+        count=1,
+    )
+    if n == 0:
+        return False
+    cell["source"] = _string_to_src(new_src)
+    return True
+
+
+def _clear_outputs(nb: dict) -> None:
+    """Strip cached outputs from every code cell. The template carries
+    the execution outputs of whichever portfolio it was last run
+    against (currently a Spectra-ish 4-factor composition), so without
+    this step every generated notebook would render the *template's*
+    backtest plots — the equity curve, the heatmap, the IC — regardless
+    of which factors it actually substituted in. ``--execute`` refills
+    them with the right outputs; otherwise the cells render empty,
+    which is the truthful state for a notebook that hasn't run yet."""
+    for cell in nb["cells"]:
+        if cell.get("cell_type") == "code":
+            cell["outputs"] = []
+            cell["execution_count"] = None
 
 
 def _inject_banner(nb: dict, portfolio: Portfolio) -> None:
@@ -122,24 +183,38 @@ def _inject_banner(nb: dict, portfolio: Portfolio) -> None:
 
 def render_notebook(portfolio: Portfolio) -> Path:
     """Materialise the per-portfolio notebook on disk. Returns the
-    output path. Skips writing if the source factors cell is missing —
-    that means the template has drifted and the script needs an
-    update, which we want loud not silent."""
+    output path. Raises if the template's ``factors = [...]`` cell
+    can't be found — that means the construction notebook has drifted
+    and the script needs updating, which we want loud not silent.
+    Missing the factor-list markdown is logged but not fatal (the
+    template might be restructured to drop that intro)."""
     if not TEMPLATE_NB.exists():
         raise FileNotFoundError(
             f"Template notebook missing: {TEMPLATE_NB.relative_to(REPO_ROOT)}"
         )
     nb = json.loads(TEMPLATE_NB.read_text())
-    substituted = False
+    factors_swapped = False
+    markdown_swapped = False
     for cell in nb["cells"]:
-        if _substitute_factors(cell, portfolio):
-            substituted = True
+        if not factors_swapped and _substitute_factors(cell, portfolio):
+            factors_swapped = True
+        if not markdown_swapped and _substitute_factor_list_markdown(
+            cell, portfolio
+        ):
+            markdown_swapped = True
+        if factors_swapped and markdown_swapped:
             break
-    if not substituted:
+    if not factors_swapped:
         raise RuntimeError(
             "Template's `factors = [...]` cell not found — has the "
             "construction notebook changed shape?"
         )
+    if not markdown_swapped:
+        print(
+            "  ! factor-list markdown block not found — intro copy may not "
+            "match the portfolio's composition"
+        )
+    _clear_outputs(nb)
     _inject_banner(nb, portfolio)
 
     out = NOTEBOOKS_DIR / f"portfolio_replication_{portfolio.id}.ipynb"
