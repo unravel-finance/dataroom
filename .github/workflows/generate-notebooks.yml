@@ -9,6 +9,9 @@ on:
   push:
     branches:
       - main
+      # TEMPORARY: iterate on the new portfolio-notebook execution on
+      # every commit. Remove before merging PR #29.
+      - claude/determined-ramanujan-YCitT
 
 permissions:
   contents: write
@@ -51,8 +54,21 @@ jobs:
             exit 1
           fi
 
-      - name: Generate and execute notebooks
+      # TEMPORARY: factor notebooks didn't change in PR #29, so we skip
+      # the (slow, 100+ min) factor-notebook regen on this PR branch to
+      # keep iteration on the portfolio pipeline tight. Remove before
+      # merging.
+      - name: Generate and execute factor notebooks
+        if: ${{ github.ref_name != 'claude/determined-ramanujan-YCitT' }}
         run: python -m scripts.generate_factor_notebooks --execute
+
+      - name: Generate and execute per-portfolio replication notebooks
+        # --execute runs each portfolio's substituted notebook against
+        # the live Unravel API so the committed .ipynb carries real
+        # backtest outputs (equity curve, heatmap, exposure). Without
+        # this every notebook would commit with empty cells — readers
+        # browsing on GitHub would see only the code, no plots.
+        run: python -m scripts.generate_portfolio_notebooks --execute
 
       - name: Upload notebooks artefact
         if: always()
@@ -75,12 +91,14 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add notebooks/
+          # Stage README.md too — both notebook generators rewrite their
+          # own README table block (factor / portfolio) in-place.
+          git add notebooks/ README.md
           if git diff --cached --quiet; then
             echo "No notebook changes to commit."
             exit 0
           fi
-          git commit -m "chore(Notebooks): Regenerate and execute factor notebooks
+          git commit -m "chore(Notebooks): Regenerate and execute notebooks
 
           Branch: ${GITHUB_REF_NAME}
           Triggered by: ${GITHUB_ACTOR}"
@@ -92,12 +110,17 @@ jobs:
         with:
           base: main
           branch: automation/refresh-notebooks
-          add-paths: notebooks/
-          commit-message: "chore(Notebooks): Regenerate and execute factor notebooks"
-          title: "chore(Notebooks): Refresh factor analysis notebooks"
+          add-paths: |
+            notebooks/
+            README.md
+          commit-message: "chore(Notebooks): Regenerate and execute notebooks"
+          title: "chore(Notebooks): Refresh factor & portfolio notebooks"
           body: |
-            Automated regeneration of the factor notebooks from
-            `scripts/factors_catalog.py`, executed against the live Unravel API.
+            Automated regeneration of the factor AlphaLens notebooks
+            (`factor_analysis_<id>.ipynb`) and the per-portfolio
+            replication notebooks (`portfolio_replication_<id>.ipynb`),
+            both executed against the live Unravel API so committed
+            outputs match the substituted parameters.
 
             Trigger: `${{ github.event_name }}`.
           delete-branch: true
