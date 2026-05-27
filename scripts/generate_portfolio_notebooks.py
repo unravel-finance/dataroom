@@ -1,5 +1,4 @@
-"""Generate per-portfolio replication notebooks from the multi-factor
-construction template.
+"""Generate per-portfolio replication notebooks.
 
 Usage:
     python -m scripts.generate_portfolio_notebooks             # all
@@ -8,13 +7,16 @@ Usage:
 
 For each portfolio in ``scripts.portfolios_catalog``, this script:
 
-1. Loads ``notebooks/00_multi_factor_portfolio_construction.ipynb`` as
-   the template (the existing, hand-crafted notebook with all the
-   markdown explanations + plotting code).
-2. Substitutes the ``factors = [...]`` cell with the portfolio's
-   ``component_ids`` so the notebook reproduces *that specific* live
-   Unravel portfolio.
-3. Updates the intro markdown so it names the portfolio.
+1. Picks the right template:
+   * **non-adaptive** → ``notebooks/00_multi_factor_portfolio_construction.ipynb``
+     (multi-factor blend + backtest, parametrised by ``factors``)
+   * **adaptive** → ``notebooks/00_adaptive-portfolios.ipynb``
+     (fetches the live, pre-blended weights for the *base* (non-adaptive)
+     portfolio, multiplies them by ``crypto_trend_consensus``, backtests
+     both — reproduces the Adaptive variant)
+2. Substitutes the parametrised cell so the notebook reproduces *that
+   specific* live Unravel portfolio.
+3. Updates the intro markdown (factor list, when applicable).
 4. Writes ``notebooks/portfolio_replication_<id>.ipynb``.
 5. (Optional, with ``--execute``) re-runs the notebook so committed
    outputs match the substituted parameters.
@@ -44,16 +46,18 @@ from scripts.portfolios_catalog import Portfolio, load_portfolios
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 NOTEBOOKS_DIR = REPO_ROOT / "notebooks"
-TEMPLATE_NB = NOTEBOOKS_DIR / "00_multi_factor_portfolio_construction.ipynb"
+MULTI_FACTOR_TEMPLATE_NB = (
+    NOTEBOOKS_DIR / "00_multi_factor_portfolio_construction.ipynb"
+)
+ADAPTIVE_TEMPLATE_NB = NOTEBOOKS_DIR / "00_adaptive-portfolios.ipynb"
 
 _GENERATED_BANNER_MD = (
     "> ⚙️ **Auto-generated** — this notebook was produced by "
-    "`scripts/generate_portfolio_notebooks.py` from "
-    "`notebooks/00_multi_factor_portfolio_construction.ipynb`. "
-    "The constituent factor list below is the live composition of "
-    "the {name} portfolio (`{portfolio_id}`) on unravel.finance. "
-    "Edit the parameters cell to customise; rerun the script to "
-    "regenerate from the template."
+    "`scripts/generate_portfolio_notebooks.py` from `{template}`. "
+    "The parameters below are the live composition of the {name} "
+    "portfolio (`{portfolio_id}`) on unravel.finance. Edit the "
+    "parameters cell to customise; rerun the script to regenerate "
+    "from the template."
 )
 
 # Regex over a single code-cell's joined source. Captures the literal
@@ -163,86 +167,51 @@ def _clear_outputs(nb: dict) -> None:
             cell["execution_count"] = None
 
 
-_RISK_OVERLAY_MD = (
-    "### Adaptive Risk Overlay\n"
-    "\n"
-    "{name} dials its gross exposure down when the broader market "
-    "regime turns adverse — replicated here by multiplying the "
-    "multi-factor blend's portfolio weights by Unravel's "
-    "`crypto_trend_consensus` regime signal. The signal is a "
-    "rolling 0/1 series (1 = risk-on, 0 = risk-off); the resulting "
-    "`portfolio_weights` collapse to zero across the universe "
-    "whenever the regime is off, which is what produces the "
-    "Adaptive variant's characteristic flat stretches.\n"
-    "\n"
-    "See `notebooks/00_adaptive-portfolios.ipynb` for the "
-    "single-factor walkthrough of the same overlay."
-)
-
-_RISK_OVERLAY_CODE = (
-    "risk_overlay = unravel_client.get_risk_regime(\n"
-    "    overlay=\"crypto_trend_consensus\",\n"
-    "    api_key=UNRAVEL_API_KEY,\n"
-    "    start_date=start_date,\n"
-    "    end_date=end_date,\n"
-    ")\n"
-    "\n"
-    "# Apply the overlay before the backtest below so the cumulative\n"
-    "# return chart reflects the adaptive composition that's actually\n"
-    "# served by the Unravel API for this portfolio.\n"
-    "portfolio_weights = portfolio_weights.mul(risk_overlay, axis=0).fillna(0.0)"
-)
-
-# Pattern to locate the cell that produces the final `portfolio_weights`
-# (after inverse-volatility weighting and clipping). We splice the
-# risk-overlay cells immediately AFTER this so the existing backtest
-# cell consumes the overlay-adjusted weights.
-_FINAL_WEIGHTS_CELL_MARKER = "portfolio_weights = portfolio_weights.clip("
+# Adaptive notebooks parametrise a single `factor = "..."` assignment
+# that's concatenated with ".40" to form the portfolio id passed to
+# `get_portfolio_historical_weights`. We swap the literal so the
+# generated notebook fetches the *base* (non-adaptive) sibling's
+# pre-blended weights and overlays `crypto_trend_consensus` — which IS
+# the Adaptive construction.
+_ADAPTIVE_FACTOR_RE = re.compile(r'factor\s*=\s*"[^"]*"')
 
 
-def _inject_risk_overlay(nb: dict, portfolio: Portfolio) -> bool:
-    """For adaptive portfolios, insert a markdown + code-cell pair
-    that fetches `crypto_trend_consensus` from the Unravel API and
-    multiplies the multi-factor `portfolio_weights` by it. The
-    downstream backtest cell then runs on the overlay-adjusted
-    weights — same construction the live Adaptive variants actually
-    serve. No-op (returns False) for non-adaptive portfolios."""
-    if not getattr(portfolio, "is_adaptive", False):
+def _adaptive_base_id(portfolio: Portfolio) -> str:
+    """Return the id of the non-adaptive sibling whose weights the
+    adaptive template should fetch (e.g. ``spectra_adaptive`` →
+    ``spectra``). The adaptive variants in the catalog are all named
+    ``<base>_adaptive`` — this enforces that invariant rather than
+    silently picking up a malformed id."""
+    if not portfolio.id.endswith("_adaptive"):
+        raise RuntimeError(
+            f"Adaptive portfolio id {portfolio.id!r} does not follow the "
+            "expected `<base>_adaptive` convention — adaptive template "
+            "parametrisation needs the base id to substitute."
+        )
+    return portfolio.id[: -len("_adaptive")]
+
+
+def _substitute_adaptive_factor(cell: dict, base_id: str) -> bool:
+    """For adaptive template: swap the parameters cell's
+    ``factor = "..."`` literal with the non-adaptive base id. Returns
+    True if substituted."""
+    if cell.get("cell_type") != "code":
         return False
-
-    md_cell = {
-        "cell_type": "markdown",
-        "metadata": {},
-        "source": _string_to_src(
-            _RISK_OVERLAY_MD.format(name=portfolio.name)
-        ),
-    }
-    code_cell = {
-        "cell_type": "code",
-        "metadata": {},
-        "execution_count": None,
-        "outputs": [],
-        "source": _string_to_src(_RISK_OVERLAY_CODE),
-    }
-
-    for i, cell in enumerate(nb["cells"]):
-        if cell.get("cell_type") != "code":
-            continue
-        src_text = _src_to_string(cell.get("source", ""))
-        if _FINAL_WEIGHTS_CELL_MARKER in src_text:
-            nb["cells"][i + 1 : i + 1] = [md_cell, code_cell]
-            return True
-
-    print(
-        "  ! adaptive risk-overlay anchor not found — generated notebook "
-        "will not apply the overlay (template likely restructured)"
+    src_text = _src_to_string(cell.get("source", ""))
+    if "factor =" not in src_text and "factor=" not in src_text:
+        return False
+    new_src, n = _ADAPTIVE_FACTOR_RE.subn(
+        f'factor = "{base_id}"', src_text, count=1
     )
-    return False
+    if n == 0:
+        return False
+    cell["source"] = _string_to_src(new_src)
+    return True
 
 
-def _inject_banner(nb: dict, portfolio: Portfolio) -> None:
+def _inject_banner(nb: dict, portfolio: Portfolio, template_name: str) -> None:
     """Insert a 'this is auto-generated' markdown banner directly after
-    the cover-image cell, so it's the first thing readers see."""
+    the cover/intro cell, so it's the first thing readers see."""
     banner_cell = {
         "cell_type": "markdown",
         "metadata": {},
@@ -250,26 +219,17 @@ def _inject_banner(nb: dict, portfolio: Portfolio) -> None:
             _GENERATED_BANNER_MD.format(
                 name=portfolio.name,
                 portfolio_id=portfolio.portfolio_id,
+                template=template_name,
             )
         ),
     }
-    # Cell 0 is the cover image in the template. Insert right after it
-    # so the banner reads at the top of the article body.
     nb["cells"].insert(1, banner_cell)
 
 
-def render_notebook(portfolio: Portfolio) -> Path:
-    """Materialise the per-portfolio notebook on disk. Returns the
-    output path. Raises if the template's ``factors = [...]`` cell
-    can't be found — that means the construction notebook has drifted
-    and the script needs updating, which we want loud not silent.
-    Missing the factor-list markdown is logged but not fatal (the
-    template might be restructured to drop that intro)."""
-    if not TEMPLATE_NB.exists():
-        raise FileNotFoundError(
-            f"Template notebook missing: {TEMPLATE_NB.relative_to(REPO_ROOT)}"
-        )
-    nb = json.loads(TEMPLATE_NB.read_text())
+def _render_multi_factor(portfolio: Portfolio) -> dict:
+    """Multi-factor construction path: swap the ``factors = [...]``
+    cell and the "consists of N factors" markdown block."""
+    nb = json.loads(MULTI_FACTOR_TEMPLATE_NB.read_text())
     factors_swapped = False
     markdown_swapped = False
     for cell in nb["cells"]:
@@ -283,17 +243,62 @@ def render_notebook(portfolio: Portfolio) -> Path:
             break
     if not factors_swapped:
         raise RuntimeError(
-            "Template's `factors = [...]` cell not found — has the "
-            "construction notebook changed shape?"
+            "Multi-factor template's `factors = [...]` cell not found — "
+            "has the construction notebook changed shape?"
         )
     if not markdown_swapped:
         print(
             "  ! factor-list markdown block not found — intro copy may not "
             "match the portfolio's composition"
         )
-    _inject_risk_overlay(nb, portfolio)
+    return nb
+
+
+def _render_adaptive(portfolio: Portfolio) -> dict:
+    """Adaptive path: load 00_adaptive-portfolios.ipynb and swap the
+    `factor = "..."` parameter so it points at the non-adaptive base
+    (e.g. ``spectra`` for ``spectra_adaptive``). The template's
+    existing logic — fetch historical weights, fetch overlay, multiply,
+    backtest with-and-without — then reproduces the Adaptive variant."""
+    nb = json.loads(ADAPTIVE_TEMPLATE_NB.read_text())
+    base_id = _adaptive_base_id(portfolio)
+    factor_swapped = False
+    for cell in nb["cells"]:
+        if _substitute_adaptive_factor(cell, base_id):
+            factor_swapped = True
+            break
+    if not factor_swapped:
+        raise RuntimeError(
+            "Adaptive template's `factor = \"...\"` parameter cell not "
+            "found — has 00_adaptive-portfolios.ipynb changed shape?"
+        )
+    return nb
+
+
+def render_notebook(portfolio: Portfolio) -> Path:
+    """Materialise the per-portfolio notebook on disk. Returns the
+    output path. Dispatches between the multi-factor construction
+    template (non-adaptive) and the adaptive-portfolios template
+    (adaptive) based on ``portfolio.is_adaptive``."""
+    if portfolio.is_adaptive:
+        if not ADAPTIVE_TEMPLATE_NB.exists():
+            raise FileNotFoundError(
+                f"Adaptive template missing: "
+                f"{ADAPTIVE_TEMPLATE_NB.relative_to(REPO_ROOT)}"
+            )
+        nb = _render_adaptive(portfolio)
+        template_name = ADAPTIVE_TEMPLATE_NB.name
+    else:
+        if not MULTI_FACTOR_TEMPLATE_NB.exists():
+            raise FileNotFoundError(
+                f"Multi-factor template missing: "
+                f"{MULTI_FACTOR_TEMPLATE_NB.relative_to(REPO_ROOT)}"
+            )
+        nb = _render_multi_factor(portfolio)
+        template_name = MULTI_FACTOR_TEMPLATE_NB.name
+
     _clear_outputs(nb)
-    _inject_banner(nb, portfolio)
+    _inject_banner(nb, portfolio, template_name)
 
     out = NOTEBOOKS_DIR / f"portfolio_replication_{portfolio.id}.ipynb"
     out.write_text(json.dumps(nb, indent=1) + "\n")
