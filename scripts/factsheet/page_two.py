@@ -360,12 +360,12 @@ def _plot_mean_return_by_quantile(ax: plt.Axes, clean: pd.DataFrame) -> None:
     ax.set_xlim(-0.5, n_q - 0.5)  # bars span the full panel width
     ax.margins(y=0.02)
     ax.set_title(
-        "Mean Forward Return by Quantile  ·  demeaned",
+        "Mean Period Wise Return by Factor Quantile",
         loc="left",
         color=theme.INK,
     )
     ax.set_xlabel("Quantile  (1 = lowest factor value, 5 = highest)")
-    ax.set_ylabel("Alpha (bps / day)")
+    ax.set_ylabel("Mean Return (bps)")
     ax.legend(loc="upper left", fontsize=7, ncol=n_p)
     ax.grid(axis="y", linewidth=0.4, alpha=0.6)
     _strip_top_right(ax)
