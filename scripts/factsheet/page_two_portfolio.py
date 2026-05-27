@@ -505,9 +505,10 @@ def _plot_rolling_sharpe(ax: plt.Axes, returns: pd.Series) -> None:
 
 
 def _plot_rolling_exposure(ax: plt.Axes, weights: pd.DataFrame | None) -> None:
-    """Rolling gross exposure (sum of |w|) — for adaptive portfolios this
-    reveals when the risk overlay has dialled exposure down; for non-adaptive
-    portfolios it sits flat near 1.0 (or 2.0 for fully-invested long-short).
+    """Rolling net exposure (Σ w) — for market-neutral portfolios it
+    oscillates near zero, with the sign showing transient long- vs
+    short-tilt; for adaptive portfolios the band reveals how the risk
+    overlay shifts the net stance over time.
 
     Skips gracefully when weights weren't fetched (degraded mode)."""
     if weights is None or weights.empty:
@@ -519,39 +520,54 @@ def _plot_rolling_exposure(ax: plt.Axes, weights: pd.DataFrame | None) -> None:
             transform=ax.transAxes,
         )
         return
-    gross = weights.abs().sum(axis=1)
-    gross = gross.dropna()
-    if gross.empty:
+    net = weights.sum(axis=1).dropna()
+    if net.empty:
         ax.axis("off")
         return
-    gross_pct = gross * 100.0
+    net_pct = net * 100.0
+    # Diverging fill — accent above zero (net long), red below (net
+    # short) — so the sign of the tilt reads visually before the axis
+    # labels do.
     ax.fill_between(
-        gross_pct.index,
-        gross_pct.values,
+        net_pct.index,
+        net_pct.values,
         0,
+        where=net_pct.values >= 0,
         color=theme.ACCENT_TINT,
         edgecolor="none",
+        interpolate=True,
+        zorder=1,
+    )
+    ax.fill_between(
+        net_pct.index,
+        net_pct.values,
+        0,
+        where=net_pct.values < 0,
+        color=theme.NEG_TINT,
+        edgecolor="none",
+        interpolate=True,
         zorder=1,
     )
     ax.plot(
-        gross_pct.index,
-        gross_pct.values,
+        net_pct.index,
+        net_pct.values,
         color=theme.ACCENT,
         linewidth=1.0,
         zorder=2,
     )
-    ax.axhline(0.0, color=theme.HAIR, linewidth=0.6)
+    ax.axhline(0.0, color=theme.SUB_INK, linewidth=0.8, zorder=3)
     ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda v, _p: f"{v:.0f}%"))
     ax.set_title(
-        # No Σ in the title — Mona Sans (the bundled brand font) has no
-        # glyph for it, and matplotlib's missing-glyph fallback renders
-        # as a blank space so the subtitle reads "·   |w|" with a gap.
-        "Rolling Gross Exposure  ·  sum of absolute weights",
+        "Rolling Net Exposure  ·  sum of weights (long − short)",
         loc="left",
         color=theme.INK,
     )
-    ax.set_ylabel("Gross")
-    ax.set_ylim(0, max(float(gross_pct.max()) * 1.08, 50.0))
+    ax.set_ylabel("Net")
+    # Symmetric y limits around zero — both extremes carry equal weight
+    # visually, so a net long tilt and net short tilt of equal
+    # magnitude look like mirror images.
+    peak = max(abs(float(net_pct.max())), abs(float(net_pct.min())), 1.0)
+    ax.set_ylim(-peak * 1.08, peak * 1.08)
     ax.grid(axis="y", linewidth=0.4, alpha=0.6)
     _strip_top_right(ax)
     _set_year_ticks(ax)

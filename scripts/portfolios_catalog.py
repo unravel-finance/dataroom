@@ -108,10 +108,11 @@ _PORTFOLIOS: list[Portfolio] = [
             'margin_risk',
             'altair',
             'mean_reversion',
+            'mean_reversion_enhanced',
         ),
         short_description=(
-            'Combines six cross-sectional, orthogonal factors, optimised for '
-            'market-neutral risk-adjusted performance.'
+            'Combines seven cross-sectional, orthogonal factors, optimised '
+            'for market-neutral risk-adjusted performance.'
         ),
         effect=(
             'A diversified multi-factor blend: combining orthogonal alpha '
@@ -119,7 +120,7 @@ _PORTFOLIOS: list[Portfolio] = [
             'information ratio.'
         ),
         long_description=(
-            'Spectra is a market-neutral portfolio that combines six orthogonal\nfactors: Enhanced Momentum, Enhanced Carry, Retail Flow, Margin Risk,\nAltair and Mean Reversion.'
+            'Spectra is a market-neutral portfolio that combines seven orthogonal\nfactors: Enhanced Momentum, Enhanced Carry, Retail Flow, Margin Risk,\nAltair, Mean Reversion and Enhanced Mean Reversion.'
             "\n\n"
             'The asset universe consists of the most liquid and actively traded assets,\nidentified on a rolling basis — various techniques are employed to keep\nit both stable and relevant, as well as survivorship-bias free.'
             "\n\n"
@@ -142,10 +143,11 @@ _PORTFOLIOS: list[Portfolio] = [
             'margin_risk',
             'altair',
             'mean_reversion',
+            'mean_reversion_enhanced',
         ),
         short_description=(
-            'Combines six cross-sectional, orthogonal factors — while reducing '
-            'exposure dynamically in adverse market conditions.'
+            'Combines seven cross-sectional, orthogonal factors — while '
+            'reducing exposure dynamically in adverse market conditions.'
         ),
         effect=(
             'The diversified Spectra blend with an adaptive overlay that '
@@ -153,7 +155,7 @@ _PORTFOLIOS: list[Portfolio] = [
             'market conditions turn hostile.'
         ),
         long_description=(
-            'Spectra Adaptive is a market-neutral portfolio that combines the same six\northogonal factors as Spectra (Enhanced Momentum, Enhanced Carry, Retail\nFlow, Margin Risk, Altair and Mean Reversion).'
+            'Spectra Adaptive is a market-neutral portfolio that combines the same seven\northogonal factors as Spectra (Enhanced Momentum, Enhanced Carry, Retail\nFlow, Margin Risk, Altair, Mean Reversion and Enhanced Mean Reversion).'
             "\n\n"
             "The Adaptive overlay reduces the portfolio's gross exposure when the\nmarket conditions are adverse. This may result in prolonged periods of\nvery small (<10%) gross exposure."
             "\n\n"
@@ -182,10 +184,11 @@ _PORTFOLIOS: list[Portfolio] = [
             'margin_risk',
             'altair',
             'mean_reversion',
+            'mean_reversion_enhanced',
         ),
         short_description=(
-            'Combines six cross-sectional, orthogonal factors, optimised for '
-            'market-neutral risk-adjusted performance & high turnover.'
+            'Combines seven cross-sectional, orthogonal factors, optimised '
+            'for market-neutral risk-adjusted performance & high turnover.'
         ),
         effect=(
             'The Spectra blend tuned for a higher-turnover regime — extracts '
@@ -193,7 +196,7 @@ _PORTFOLIOS: list[Portfolio] = [
             'trading volume.'
         ),
         long_description=(
-            'Spectra High-Turnover is a market-neutral portfolio, optimised for higher\nturnover, that combines six orthogonal factors: Enhanced Momentum,\nEnhanced Carry, Retail Flow, Margin Risk, Altair and Mean Reversion.'
+            'Spectra High-Turnover is a market-neutral portfolio, optimised for higher\nturnover, that combines seven orthogonal factors: Enhanced Momentum,\nEnhanced Carry, Retail Flow, Margin Risk, Altair, Mean Reversion and\nEnhanced Mean Reversion.'
             "\n\n"
             'The asset universe consists of the most liquid and actively traded assets,\nidentified on a rolling basis — various techniques are employed to keep\nit both stable and relevant, as well as survivorship-bias free.'
             "\n\n"

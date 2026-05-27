@@ -163,6 +163,83 @@ def _clear_outputs(nb: dict) -> None:
             cell["execution_count"] = None
 
 
+_RISK_OVERLAY_MD = (
+    "### Adaptive Risk Overlay\n"
+    "\n"
+    "{name} dials its gross exposure down when the broader market "
+    "regime turns adverse — replicated here by multiplying the "
+    "multi-factor blend's portfolio weights by Unravel's "
+    "`crypto_trend_consensus` regime signal. The signal is a "
+    "rolling 0/1 series (1 = risk-on, 0 = risk-off); the resulting "
+    "`portfolio_weights` collapse to zero across the universe "
+    "whenever the regime is off, which is what produces the "
+    "Adaptive variant's characteristic flat stretches.\n"
+    "\n"
+    "See `notebooks/00_adaptive-portfolios.ipynb` for the "
+    "single-factor walkthrough of the same overlay."
+)
+
+_RISK_OVERLAY_CODE = (
+    "risk_overlay = unravel_client.get_risk_regime(\n"
+    "    overlay=\"crypto_trend_consensus\",\n"
+    "    api_key=UNRAVEL_API_KEY,\n"
+    "    start_date=start_date,\n"
+    "    end_date=end_date,\n"
+    ")\n"
+    "\n"
+    "# Apply the overlay before the backtest below so the cumulative\n"
+    "# return chart reflects the adaptive composition that's actually\n"
+    "# served by the Unravel API for this portfolio.\n"
+    "portfolio_weights = portfolio_weights.mul(risk_overlay, axis=0).fillna(0.0)"
+)
+
+# Pattern to locate the cell that produces the final `portfolio_weights`
+# (after inverse-volatility weighting and clipping). We splice the
+# risk-overlay cells immediately AFTER this so the existing backtest
+# cell consumes the overlay-adjusted weights.
+_FINAL_WEIGHTS_CELL_MARKER = "portfolio_weights = portfolio_weights.clip("
+
+
+def _inject_risk_overlay(nb: dict, portfolio: Portfolio) -> bool:
+    """For adaptive portfolios, insert a markdown + code-cell pair
+    that fetches `crypto_trend_consensus` from the Unravel API and
+    multiplies the multi-factor `portfolio_weights` by it. The
+    downstream backtest cell then runs on the overlay-adjusted
+    weights — same construction the live Adaptive variants actually
+    serve. No-op (returns False) for non-adaptive portfolios."""
+    if not getattr(portfolio, "is_adaptive", False):
+        return False
+
+    md_cell = {
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": _string_to_src(
+            _RISK_OVERLAY_MD.format(name=portfolio.name)
+        ),
+    }
+    code_cell = {
+        "cell_type": "code",
+        "metadata": {},
+        "execution_count": None,
+        "outputs": [],
+        "source": _string_to_src(_RISK_OVERLAY_CODE),
+    }
+
+    for i, cell in enumerate(nb["cells"]):
+        if cell.get("cell_type") != "code":
+            continue
+        src_text = _src_to_string(cell.get("source", ""))
+        if _FINAL_WEIGHTS_CELL_MARKER in src_text:
+            nb["cells"][i + 1 : i + 1] = [md_cell, code_cell]
+            return True
+
+    print(
+        "  ! adaptive risk-overlay anchor not found — generated notebook "
+        "will not apply the overlay (template likely restructured)"
+    )
+    return False
+
+
 def _inject_banner(nb: dict, portfolio: Portfolio) -> None:
     """Insert a 'this is auto-generated' markdown banner directly after
     the cover-image cell, so it's the first thing readers see."""
@@ -214,6 +291,7 @@ def render_notebook(portfolio: Portfolio) -> Path:
             "  ! factor-list markdown block not found — intro copy may not "
             "match the portfolio's composition"
         )
+    _inject_risk_overlay(nb, portfolio)
     _clear_outputs(nb)
     _inject_banner(nb, portfolio)
 
