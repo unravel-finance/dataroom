@@ -182,12 +182,12 @@ def _draw_hero(
 
 
 def _draw_top_right_quantile_bars(fig: plt.Figure, clean: pd.DataFrame) -> None:
-    """Mini quantile-alpha chart — 5 bars (Q1..Q5) of demeaned 1D mean
-    forward return. Sits where the sparkline used to. Same data source as the
-    full-width bar chart on page 2."""
+    """Mini quantile-return chart — 5 bars (Q1..Q5) of 1D mean forward return.
+    Sits where the sparkline used to. Same data source as the full-width bar
+    chart on page 2."""
     try:
         mean_q, _ = alphalens.performance.mean_return_by_quantile(
-            clean, by_date=False, demeaned=True
+            clean, by_date=False, demeaned=False
         )
     except Exception:  # noqa: BLE001 — degrade gracefully
         return
@@ -208,7 +208,7 @@ def _draw_top_right_quantile_bars(fig: plt.Figure, clean: pd.DataFrame) -> None:
     fig.text(
         spark_left,
         spark_bottom + spark_h + 0.008,
-        "MEAN ALPHA BY QUANTILE  ·  1D (BPS)",
+        "MEAN FORWARD RETURN BY QUANTILE  ·  1D (BPS)",
         fontsize=6.5,
         color=theme.MUTED,
         weight="semibold",
