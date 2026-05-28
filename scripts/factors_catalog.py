@@ -34,6 +34,11 @@ class Factor:
     badges: tuple[str, ...] = ()
     effect: str = ""
 
+    # Shared interface with scripts.portfolios_catalog.Portfolio — the
+    # page_one factsheet renderer accepts either and branches on this flag
+    # for construction-method copy.
+    is_multi_factor: bool = False
+
     @property
     def detail_url(self) -> str:
         return (
