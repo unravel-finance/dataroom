@@ -51,15 +51,6 @@ MULTI_FACTOR_TEMPLATE_NB = (
 )
 ADAPTIVE_TEMPLATE_NB = NOTEBOOKS_DIR / "00_adaptive-portfolios.ipynb"
 
-_GENERATED_BANNER_MD = (
-    "> ⚙️ **Auto-generated** — this notebook was produced by "
-    "`scripts/generate_portfolio_notebooks.py` from `{template}`. "
-    "The parameters below are the live composition of the {name} "
-    "portfolio (`{portfolio_id}`) on unravel.finance. Edit the "
-    "parameters cell to customise; rerun the script to regenerate "
-    "from the template."
-)
-
 # Regex over a single code-cell's joined source. Captures the literal
 # ``factors = [ … ]`` assignment so we can swap the list contents while
 # keeping surrounding code untouched.
@@ -209,23 +200,6 @@ def _substitute_adaptive_factor(cell: dict, base_id: str) -> bool:
     return True
 
 
-def _inject_banner(nb: dict, portfolio: Portfolio, template_name: str) -> None:
-    """Insert a 'this is auto-generated' markdown banner directly after
-    the cover/intro cell, so it's the first thing readers see."""
-    banner_cell = {
-        "cell_type": "markdown",
-        "metadata": {},
-        "source": _string_to_src(
-            _GENERATED_BANNER_MD.format(
-                name=portfolio.name,
-                portfolio_id=portfolio.portfolio_id,
-                template=template_name,
-            )
-        ),
-    }
-    nb["cells"].insert(1, banner_cell)
-
-
 def _render_multi_factor(portfolio: Portfolio) -> dict:
     """Multi-factor construction path: swap the ``factors = [...]``
     cell and the "consists of N factors" markdown block."""
@@ -287,7 +261,6 @@ def render_notebook(portfolio: Portfolio) -> Path:
                 f"{ADAPTIVE_TEMPLATE_NB.relative_to(REPO_ROOT)}"
             )
         nb = _render_adaptive(portfolio)
-        template_name = ADAPTIVE_TEMPLATE_NB.name
     else:
         if not MULTI_FACTOR_TEMPLATE_NB.exists():
             raise FileNotFoundError(
@@ -295,10 +268,8 @@ def render_notebook(portfolio: Portfolio) -> Path:
                 f"{MULTI_FACTOR_TEMPLATE_NB.relative_to(REPO_ROOT)}"
             )
         nb = _render_multi_factor(portfolio)
-        template_name = MULTI_FACTOR_TEMPLATE_NB.name
 
     _clear_outputs(nb)
-    _inject_banner(nb, portfolio, template_name)
 
     out = NOTEBOOKS_DIR / f"portfolio_replication_{portfolio.id}.ipynb"
     out.write_text(json.dumps(nb, indent=1) + "\n")
