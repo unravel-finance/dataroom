@@ -18,6 +18,8 @@ from __future__ import annotations
 import textwrap
 from datetime import date as _date
 
+from typing import Union
+
 import alphalens
 import matplotlib.dates as _mdates
 import matplotlib.pyplot as plt
@@ -30,6 +32,13 @@ from scripts.factsheet import metrics, theme
 from scripts.factsheet.branding import accent_by_magnitude, draw_brand
 from scripts.factsheet.buttons import draw_link_button
 from scripts.factsheet.justify import _render_justified_block
+from scripts.portfolios_catalog import Portfolio
+
+# Page 1 is shared between single-factor (Factor) and multi-factor (Portfolio)
+# tear sheets; both expose the minimal attribute set this module uses
+# (name, effect, short_description, long_description, default_universe,
+# returns_csv_url, is_multi_factor).
+Asset = Union[Factor, Portfolio]
 
 MARGIN_X = 0.07
 RIGHT_X = 1.0 - MARGIN_X
@@ -59,7 +68,7 @@ def _hline(fig: plt.Figure, y: float, *, lw: float = 0.6, color: str | None = No
 # ---------- header ------------------------------------------------------------
 
 
-def _draw_header(fig: plt.Figure, factor: Factor, page: int) -> None:
+def _draw_header(fig: plt.Figure, factor: Asset, page: int) -> None:
     draw_brand(fig, MARGIN_X)
     fig.text(
         RIGHT_X,
@@ -117,7 +126,7 @@ def _balanced_two_lines(name: str) -> str:
     return " ".join(words[:best_i]) + "\n" + " ".join(words[best_i:])
 
 
-def _draw_title(fig: plt.Figure, factor: Factor, right_limit: float) -> float:
+def _draw_title(fig: plt.Figure, factor: Asset, right_limit: float) -> float:
     """Big factor name, top-left. Never collides with whatever sits to its
     right (the top-right quantile mini chart): shrink to fit, then wrap to
     two lines if a single line would have to get too small. Returns the
@@ -152,7 +161,7 @@ def _draw_title(fig: plt.Figure, factor: Factor, right_limit: float) -> float:
 
 
 def _draw_hero(
-    fig: plt.Figure, factor: Factor, clean: pd.DataFrame | None
+    fig: plt.Figure, factor: Asset, clean: pd.DataFrame | None
 ) -> float:
     """Draw title + subtitle (+ mini chart). Returns the subtitle's bottom
     edge (figure fraction) so the caller can flow the overview beneath it."""
@@ -236,7 +245,7 @@ def _draw_top_right_quantile_bars(fig: plt.Figure, clean: pd.DataFrame) -> None:
     ax.spines["bottom"].set_linewidth(0.5)
 
 
-def _draw_overview(fig: plt.Figure, factor: Factor, y_top: float) -> None:
+def _draw_overview(fig: plt.Figure, factor: Asset, y_top: float) -> None:
     """Two justified columns of the long description, paragraphs balanced by
     rough line count."""
     paragraphs = [
@@ -348,16 +357,33 @@ def _draw_table_band(
     y_top: float,
     groups: list[dict],
     *,
-    gap: float = 0.020,
+    inter_group_gap: float = 0.028,
 ) -> None:
-    """Draw a horizontal band of grouped mini-tables (institutional-factsheet
-    style). Each group: {'title': str, 'cols': [(header, value), ...],
-    'weight': float}. Layout per group: title → rule → column headers →
-    values → rule."""
+    """Draw a horizontal band of grouped mini-tables.
+
+    Layout mirrors the site's PerformanceSummaryTable (post-#562 on
+    unravel-router): content-driven cell sizing instead of arbitrary
+    per-group weight ratios. The page's available width is divided into
+    equal cell slots based on the band's total cell count, groups are
+    sized to (num_cells × cell_slot), and an inter-group gap separates
+    them. A group whose cell count is short of the budget ends before
+    the right margin — same as the site's flex-wrap behaviour, where
+    bands don't stretch to fill if they don't have to.
+
+    Cell shape:
+        ``(header, value)``                     — default 1 unit wide
+        ``(header, value, min_units: float)``   — wider slot, e.g. for
+                                                   YYYY-MM-DD dates.
+    """
     total_w = RIGHT_X - MARGIN_X
-    n = len(groups)
-    avail = total_w - gap * (n - 1)
-    sum_w = sum(g["weight"] for g in groups)
+    n_groups = len(groups)
+
+    def _cell_units(col: tuple) -> float:
+        return float(col[2]) if len(col) >= 3 else 1.0
+
+    total_units = sum(_cell_units(c) for g in groups for c in g["cols"])
+    avail = total_w - inter_group_gap * max(n_groups - 1, 0)
+    unit_w = avail / total_units if total_units else 0.0
 
     title_y = y_top
     rule1_y = y_top - 0.014
@@ -367,7 +393,8 @@ def _draw_table_band(
 
     x = MARGIN_X
     for g in groups:
-        gw = avail * g["weight"] / sum_w
+        cols = g["cols"]
+        gw = sum(_cell_units(c) for c in cols) * unit_w
         fig.text(
             x,
             title_y,
@@ -380,30 +407,36 @@ def _draw_table_band(
         fig.add_artist(
             plt.Line2D([x, x + gw], [rule1_y, rule1_y], color=theme.HAIR, linewidth=0.6)
         )
-        cols = g["cols"]
-        cw = gw / len(cols)
-        for j, (hdr, val) in enumerate(cols):
-            cx = x + j * cw + cw / 2
+        cx = x
+        for col in cols:
+            hdr, val = col[0], col[1]
+            cw = _cell_units(col) * unit_w
+            mid = cx + cw / 2
             fig.text(
-                cx, header_y, hdr, fontsize=6.5, color=theme.MUTED,
+                mid, header_y, hdr, fontsize=6.5, color=theme.MUTED,
                 ha="center", va="top",
             )
             # Body Mona Sans (not the Expanded display cut) at semibold:
             # the wide display face is hard to read for dense numerics and
             # doesn't column-align; semibold keeps the figures prominent.
             fig.text(
-                cx, value_y, val, fontsize=9, color=theme.INK,
+                mid, value_y, val, fontsize=9, color=theme.INK,
                 ha="center", va="center", weight="semibold",
             )
+            cx += cw
         fig.add_artist(
             plt.Line2D([x, x + gw], [rule2_y, rule2_y], color=theme.HAIR, linewidth=0.6)
         )
-        x += gw + gap
+        x += gw + inter_group_gap
 
 
 def _draw_performance_band(
     fig: plt.Figure, returns: pd.Series, stats: metrics.Stats, y_top: float
 ) -> None:
+    """Two-group Performance band: calendar-anchored Cumulative Returns
+    (MTD / Last Month / YTD / 1Y) on the left, trailing CAGR
+    (1M / 3M / 1Y / 3Y / 5Y / SI) on the right. Mirrors the
+    PerformanceSummaryTable on the site's portfolio page."""
     fig.text(
         MARGIN_X, y_top + 0.022, "PERFORMANCE",
         fontsize=7, color=theme.MUTED, weight="semibold", va="top",
@@ -420,34 +453,27 @@ def _draw_performance_band(
         ha="right",
         va="top",
     )
-    gr = metrics.gross_return_by_window(returns)
-    ann = metrics.annual_returns(returns)
-    ann_labels = sorted(
-        ann, key=lambda k: (k == "YTD", k)
-    )  # years ascending, YTD last
+    cum = metrics.cumulative_returns_by_window(returns)
+    cagr = metrics.cagr_by_window(returns)
     _draw_table_band(
         fig,
         y_top,
         [
             {
-                "title": "Gross Rate of Return",
-                "weight": 5,
+                "title": "Cumulative Returns",
                 "cols": [
-                    (lbl, metrics.fmt_pct(gr[lbl]))
-                    for lbl in ("1M", "3M", "1Y", "3Y", "5Y")
+                    ("MTD", metrics.fmt_pct(cum["MTD"])),
+                    ("Last Month", metrics.fmt_pct(cum["LastMonth"])),
+                    ("YTD", metrics.fmt_pct(cum["YTD"])),
+                    ("1Y", metrics.fmt_pct(cum["1Y"])),
                 ],
             },
             {
-                "title": "Annual Performance (%)",
-                "weight": max(len(ann_labels), 3),
+                "title": "Annualised Returns (CAGR)",
                 "cols": [
-                    (lbl, metrics.fmt_pct(ann[lbl])) for lbl in ann_labels
+                    (lbl, metrics.fmt_pct(cagr[lbl]))
+                    for lbl in ("1M", "3M", "1Y", "3Y", "5Y", "SI")
                 ],
-            },
-            {
-                "title": "Since Inception",
-                "weight": 1.5,
-                "cols": [("SI", metrics.fmt_pct(gr["SI"]))],
             },
         ],
     )
@@ -456,12 +482,15 @@ def _draw_performance_band(
 def _draw_risk_band(
     fig: plt.Figure, returns: pd.Series, stats: metrics.Stats, y_top: float
 ) -> None:
+    """Risk Profile band: Realised Volatility (annualised) across the same
+    windows as CAGR, plus Max Drawdown (% + date). Matches the site's
+    Risk Profile card; Return-to-Risk Ratio is intentionally dropped to
+    stay aligned with the site's content."""
     fig.text(
-        MARGIN_X, y_top + 0.022, "RISK & RETURN PROFILE",
+        MARGIN_X, y_top + 0.022, "RISK PROFILE",
         fontsize=7, color=theme.MUTED, weight="semibold", va="top",
     )
     vol = metrics.realized_vol_by_window(returns)
-    rtr = metrics.return_to_risk_by_window(returns)
     mdd, mdd_date = metrics.max_drawdown_with_date(returns)
     _draw_table_band(
         fig,
@@ -469,26 +498,25 @@ def _draw_risk_band(
         [
             {
                 "title": "Realised Volatility (annualised)",
-                "weight": 4,
                 "cols": [
                     (lbl, metrics.fmt_pct(vol[lbl]))
-                    for lbl in ("1M", "3M", "1Y", "3Y")
-                ],
-            },
-            {
-                "title": "Return-to-Risk Ratio",
-                "weight": 4,
-                "cols": [
-                    (lbl, metrics.fmt_ratio(rtr[lbl]))
-                    for lbl in ("1M", "3M", "1Y", "3Y")
+                    for lbl in ("1M", "3M", "1Y", "3Y", "5Y", "SI")
                 ],
             },
             {
                 "title": "Max Drawdown",
-                "weight": 2.4,
                 "cols": [
                     ("%", metrics.fmt_pct(mdd)),
-                    ("Date", mdd_date.strftime("%Y-%m-%d") if mdd_date else "—"),
+                    # Date string ("YYYY-MM-DD") is much wider than the
+                    # default %-style values — give it 1.4 slot units
+                    # so it doesn't crowd the % column. Mirrors the
+                    # site's natural cell-grows-to-content behaviour
+                    # (whitespace-nowrap on StatCell values).
+                    (
+                        "Date",
+                        mdd_date.strftime("%Y-%m-%d") if mdd_date else "—",
+                        1.4,
+                    ),
                 ],
             },
         ],
@@ -547,16 +575,56 @@ def _draw_cumulative_chart(
 # ---------- disclaimer + about + footer ---------------------------------------
 
 
-def _draw_disclaimer(fig: plt.Figure, factor: Factor) -> None:
-    # Short illustrative-portfolio note (the full Notice & Disclaimer and the
-    # About Unravel block live on page 2).
-    note = (
+def _section_copy(factor: Asset) -> tuple[str, str]:
+    """Section eyebrow + sub-label copy describing what the cumulative chart
+    below represents. Diverges for single- vs. multi-factor portfolios:
+    single-factor is an illustrative bucket-sort backtest, multi-factor is
+    the actual portfolio we run."""
+    if factor.is_multi_factor:
+        n = len(getattr(factor, "components", ()) or ())
+        n_text = f"{n} orthogonal factors" if n else "multiple orthogonal factors"
+        return (
+            f"Top {factor.default_universe} cross-sectional multi-factor portfolio",
+            (
+                f"Blends {n_text} into a single diversified return stream "
+                f"across the rolling Top {factor.default_universe} universe "
+                "(point-in-time). Asset positions are sized by inverse "
+                "rolling volatility; rebalanced daily."
+            ),
+        )
+    return (
+        f"Example Top {factor.default_universe} cross-sectional portfolio",
+        (
+            "Long and short the dynamic, rolling Top "
+            f"{factor.default_universe} universe (point-in-time), "
+            "sized by the factor's cross-sectional strength. "
+            "Rebalanced daily."
+        ),
+    )
+
+
+def _disclaimer_note(factor: Asset) -> str:
+    if factor.is_multi_factor:
+        return (
+            f"Note — Performance is for the {factor.name} multi-factor portfolio "
+            f"(component factors blended and rescaled across the Top "
+            f"{factor.default_universe} universe, rebalanced daily); "
+            "demonstrative only, not a tradable product. Past performance is "
+            "not indicative of future results."
+        )
+    return (
         "Note — Performance is for an illustrative single-factor portfolio "
         f"(positions sized proportionally to the factor signal across the "
         f"Top {factor.default_universe} universe, rebalanced daily); "
         "demonstrative only, not a tradable product. Past performance is "
         "not indicative of future results."
     )
+
+
+def _draw_disclaimer(fig: plt.Figure, factor: Asset) -> None:
+    # Short illustrative-portfolio note (the full Notice & Disclaimer and the
+    # About Unravel block live on page 2).
+    note = _disclaimer_note(factor)
     fig.text(
         MARGIN_X,
         0.052,
@@ -573,7 +641,7 @@ def _draw_disclaimer(fig: plt.Figure, factor: Factor) -> None:
 
 
 def render_page_one(
-    factor: Factor,
+    factor: Asset,
     returns: pd.Series,
     stats: metrics.Stats,
     clean: pd.DataFrame | None = None,
@@ -595,16 +663,12 @@ def render_page_one(
     overview_top = min(0.790, subtitle_bottom - 0.024)
     _draw_overview(fig, factor, y_top=overview_top)
 
+    section_label, section_sub_label = _section_copy(factor)
     _draw_section_eyebrow(
         fig,
         y=0.520,
-        label=f"Example Top {factor.default_universe} cross-sectional portfolio",
-        sub_label=(
-            "Long and short the dynamic, rolling Top "
-            f"{factor.default_universe} universe (point-in-time), "
-            "sized by the factor's cross-sectional strength. "
-            "Rebalanced daily."
-        ),
+        label=section_label,
+        sub_label=section_sub_label,
         # Narrow wrap so the 2-line caption stays on the left, clear of the
         # download button sharing the header row.
         sub_label_wrap=72,

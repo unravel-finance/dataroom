@@ -81,11 +81,13 @@ _RETURN_WINDOWS: list[tuple[str, int | None]] = [
     ("5Y", 365 * 5),
     ("SI", None),
 ]
-_RISK_WINDOWS: list[tuple[str, int]] = [
+_RISK_WINDOWS: list[tuple[str, int | None]] = [
     ("1M", 30),
     ("3M", 91),
     ("1Y", 365),
     ("3Y", 365 * 3),
+    ("5Y", 365 * 5),
+    ("SI", None),
 ]
 
 
@@ -110,6 +112,33 @@ def gross_return_by_window(returns: pd.Series) -> dict[str, float]:
     return out
 
 
+def cagr_by_window(returns: pd.Series) -> dict[str, float]:
+    """Annualised compound return per trailing window; NaN when history is
+    too short. Crypto trades 24/7 so annualising on calendar days matches
+    realised vol's TRADING_DAYS=365 convention."""
+    r = returns.dropna()
+    span_days = (r.index[-1] - r.index[0]).days
+    out: dict[str, float] = {}
+    for label, days in _RETURN_WINDOWS:
+        if days is not None and days > span_days + 1:
+            out[label] = float("nan")
+            continue
+        w = _window_slice(r, days)
+        if w.empty:
+            out[label] = float("nan")
+            continue
+        total = float((1.0 + w).prod())
+        # Use the actual observed span of the window — guards against
+        # nominal vs. realised mismatches at the edges (e.g. SI of a
+        # series that started mid-year).
+        window_days = (w.index[-1] - w.index[0]).days
+        if window_days <= 0 or total <= 0:
+            out[label] = float("nan")
+            continue
+        out[label] = total ** (TRADING_DAYS / window_days) - 1.0
+    return out
+
+
 def annual_returns(returns: pd.Series) -> dict[str, float]:
     """Calendar-year compound returns; the last (partial) year is YTD."""
     r = returns.dropna()
@@ -122,12 +151,13 @@ def annual_returns(returns: pd.Series) -> dict[str, float]:
 
 
 def realized_vol_by_window(returns: pd.Series) -> dict[str, float]:
-    """Annualised realised volatility per trailing window."""
+    """Annualised realised volatility per trailing window. SI uses the full
+    series."""
     r = returns.dropna()
     span_days = (r.index[-1] - r.index[0]).days
     out: dict[str, float] = {}
     for label, days in _RISK_WINDOWS:
-        if days > span_days + 1:
+        if days is not None and days > span_days + 1:
             out[label] = float("nan")
             continue
         w = _window_slice(r, days)
@@ -135,6 +165,56 @@ def realized_vol_by_window(returns: pd.Series) -> dict[str, float]:
             float(w.std() * np.sqrt(TRADING_DAYS)) if len(w) > 2 else float("nan")
         )
     return out
+
+
+def cumulative_returns_by_window(returns: pd.Series) -> dict[str, float]:
+    """Cumulative compound return for calendar-anchored windows (MTD, last
+    full month, YTD, trailing 1Y). Mirrors the site's portfolio-page
+    "Cumulative Returns" card in apps/alpha/.../performanceMetrics.ts —
+    same window definitions, same NaN policy when history is too short."""
+    r = returns.dropna()
+    if r.empty:
+        return {"MTD": float("nan"), "LastMonth": float("nan"),
+                "YTD": float("nan"), "1Y": float("nan")}
+
+    last = pd.Timestamp(r.index[-1])
+    first = pd.Timestamp(r.index[0])
+    tz = getattr(last, "tz", None)
+
+    def _ts(year: int, month: int, day: int) -> pd.Timestamp:
+        return pd.Timestamp(year=year, month=month, day=day, tz=tz)
+
+    month_start = _ts(last.year, last.month, 1)
+    prev_month_end = month_start - pd.Timedelta(days=1)
+    prev_month_start = _ts(prev_month_end.year, prev_month_end.month, 1)
+    year_start = _ts(last.year, 1, 1)
+
+    def _compound(s: pd.Series) -> float:
+        return float((1.0 + s).prod() - 1.0) if not s.empty else float("nan")
+
+    mtd_data = r.loc[r.index >= month_start]
+    ytd_data = r.loc[r.index >= year_start]
+    one_y_data = _window_slice(r, 365)
+
+    # Last Month is only meaningful when we have a fully-elapsed prior
+    # month inside the series — otherwise the figure would silently be a
+    # partial month and read as a regression vs. the prior period.
+    has_full_last_month = first <= prev_month_start
+    last_month_data = r.loc[
+        (r.index >= prev_month_start) & (r.index <= prev_month_end)
+    ]
+
+    span_days = (r.index[-1] - r.index[0]).days
+    return {
+        "MTD": _compound(mtd_data) if not mtd_data.empty else float("nan"),
+        "LastMonth": (
+            _compound(last_month_data)
+            if has_full_last_month and not last_month_data.empty
+            else float("nan")
+        ),
+        "YTD": _compound(ytd_data) if not ytd_data.empty else float("nan"),
+        "1Y": _compound(one_y_data) if span_days + 1 >= 365 else float("nan"),
+    }
 
 
 def return_to_risk_by_window(returns: pd.Series) -> dict[str, float]:
