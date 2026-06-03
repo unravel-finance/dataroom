@@ -9,9 +9,6 @@ on:
   push:
     branches:
       - main
-      # TEMPORARY: iterate on the new portfolio-notebook execution on
-      # every commit. Remove before merging PR #29.
-      - claude/determined-ramanujan-YCitT
 
 permissions:
   contents: write
@@ -54,12 +51,7 @@ jobs:
             exit 1
           fi
 
-      # TEMPORARY: factor notebooks didn't change in PR #29, so we skip
-      # the (slow, 100+ min) factor-notebook regen on this PR branch to
-      # keep iteration on the portfolio pipeline tight. Remove before
-      # merging.
       - name: Generate and execute factor notebooks
-        if: ${{ github.ref_name != 'claude/determined-ramanujan-YCitT' }}
         run: python -m scripts.generate_factor_notebooks --execute
 
       - name: Generate and execute per-portfolio replication notebooks
