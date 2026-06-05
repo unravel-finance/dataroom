@@ -1,6 +1,3 @@
-# %% [markdown]
-# > **Universe & leverage:** this factor is run as a **Top 40 market-cap universe**, **200% gross exposure** (100% long / 100% short) market-neutral portfolio. The AlphaLens analysis below evaluates the underlying factor signal.
-
 # %%
 # AUTO-GENERATED from scripts/factors_catalog.py by
 # scripts/generate_factor_notebooks.py -- do not edit by hand.
