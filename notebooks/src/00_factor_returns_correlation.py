@@ -1,3 +1,6 @@
+# %% [markdown]
+# > **Universe & leverage:** **Top 40 market-cap universe**, **200% gross exposure**
+
 # %%
 # AUTO-GENERATED from scripts/factors_catalog.py by
 # scripts/generate_factor_notebooks.py -- do not edit by hand.

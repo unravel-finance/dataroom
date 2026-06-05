@@ -96,7 +96,10 @@ factor_analysis(restricted_factors[columns_intersection], underlying)
 # %%
 '''
 
-_CORRELATION_TEMPLATE = '''# %%
+_CORRELATION_TEMPLATE = '''# %% [markdown]
+# > **Universe & leverage:** **Top 40 market-cap universe**, **200% gross exposure**
+
+# %%
 {banner}
 {bootstrap}
 import matplotlib.pyplot as plt

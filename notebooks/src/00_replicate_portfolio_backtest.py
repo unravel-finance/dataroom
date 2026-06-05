@@ -1,3 +1,6 @@
+# %% [markdown]
+# > **Universe & leverage:** **Top 40 market-cap universe**, **200% gross exposure**
+
 # %%
 import sys
 from pathlib import Path
