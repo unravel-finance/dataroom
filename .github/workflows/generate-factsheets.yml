@@ -19,6 +19,8 @@ on:
   push:
     branches:
       - main
+      # TEMPORARY: regenerate artefacts on each push to this working branch.
+      - claude/eloquent-mayer-CneqV
 
 permissions:
   contents: write
