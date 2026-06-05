@@ -42,7 +42,10 @@ _GENERATED_BANNER = (
     "# scripts/generate_factor_notebooks.py -- do not edit by hand.\n"
 )
 
-_FACTOR_TEMPLATE = '''# %%
+_FACTOR_TEMPLATE = '''# %% [markdown]
+# > **Universe & leverage:** this factor is run as a **Top {universe} market-cap universe**, **200% gross exposure** (100% long / 100% short) market-neutral portfolio. The AlphaLens analysis below evaluates the underlying factor signal.
+
+# %%
 {banner}
 {bootstrap}
 from unravel_client import (
@@ -96,7 +99,10 @@ factor_analysis(restricted_factors[columns_intersection], underlying)
 # %%
 '''
 
-_CORRELATION_TEMPLATE = '''# %%
+_CORRELATION_TEMPLATE = '''# %% [markdown]
+# > **Universe & leverage:** Unravel cross-sectional portfolios run on the **Top 40 market-cap universe** at **200% gross exposure** (100% long / 100% short, market-neutral). The returns correlated below are on that basis.
+
+# %%
 {banner}
 {bootstrap}
 import matplotlib.pyplot as plt

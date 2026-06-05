@@ -1,3 +1,6 @@
+# %% [markdown]
+# > **Universe & leverage:** Unravel cross-sectional portfolios run on the **Top 40 market-cap universe** at **200% gross exposure** (100% long / 100% short, market-neutral). The returns correlated below are on that basis.
+
 # %%
 # AUTO-GENERATED from scripts/factors_catalog.py by
 # scripts/generate_factor_notebooks.py -- do not edit by hand.
