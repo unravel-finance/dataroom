@@ -575,6 +575,21 @@ def _draw_cumulative_chart(
 # ---------- disclaimer + about + footer ---------------------------------------
 
 
+def _leverage_basis(factor: Asset) -> str:
+    """The universe + gross-exposure basis the performance is shown on.
+
+    Standard market-neutral books run at 200% gross exposure (100% long /
+    100% short); adaptive overlays scale that down (toward zero) in adverse
+    regimes, so they are described as a ceiling rather than a constant."""
+    universe = f"Top {factor.default_universe} market-cap universe"
+    if getattr(factor, "is_adaptive", False):
+        return (
+            f"{universe} · up to 200% gross exposure, scaled down adaptively "
+            "in adverse conditions"
+        )
+    return f"{universe} · 200% gross exposure (100% long / 100% short)"
+
+
 def _section_copy(factor: Asset) -> tuple[str, str]:
     """Section eyebrow + sub-label copy describing what the cumulative chart
     below represents. Diverges for single- vs. multi-factor portfolios:
@@ -586,19 +601,17 @@ def _section_copy(factor: Asset) -> tuple[str, str]:
         return (
             f"Top {factor.default_universe} cross-sectional multi-factor portfolio",
             (
-                f"Blends {n_text} into a single diversified return stream "
-                f"across the rolling Top {factor.default_universe} universe "
-                "(point-in-time). Asset positions are sized by inverse "
-                "rolling volatility; rebalanced daily."
+                f"{_leverage_basis(factor)}. Blends {n_text} into one "
+                "diversified, point-in-time stream; inverse-vol sized, "
+                "rebalanced daily."
             ),
         )
     return (
         f"Example Top {factor.default_universe} cross-sectional portfolio",
         (
-            "Long and short the dynamic, rolling Top "
-            f"{factor.default_universe} universe (point-in-time), "
-            "sized by the factor's cross-sectional strength. "
-            "Rebalanced daily."
+            f"{_leverage_basis(factor)}. Long and short the dynamic, "
+            "point-in-time universe, sized by the factor's cross-sectional "
+            "strength; rebalanced daily."
         ),
     )
 
