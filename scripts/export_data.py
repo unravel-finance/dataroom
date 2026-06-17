@@ -20,7 +20,13 @@ from unravel_client import (
     get_tickers,
 )
 
-from scripts._common import UnknownFactors, get_api_key, job_count, select_factors
+from scripts._common import (
+    UnknownFactors,
+    drop_incomplete_last_day,
+    get_api_key,
+    job_count,
+    select_factors,
+)
 from scripts.factors_catalog import Factor
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -58,6 +64,7 @@ def export_returns(factor: Factor, api_key: str) -> Path:
         id=factor.portfolio_id, api_key=api_key
     )
     returns = returns.dropna()
+    returns = drop_incomplete_last_day(returns)
     returns.index.name = "date"
     returns.name = "return"
 

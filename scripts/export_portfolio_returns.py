@@ -27,6 +27,7 @@ from unravel_client import get_portfolio_returns
 
 from scripts._common import (
     UnknownPortfolios,
+    drop_incomplete_last_day,
     get_api_key,
     job_count,
     select_portfolios,
@@ -43,6 +44,7 @@ def export_returns(portfolio: Portfolio, api_key: str) -> Path:
         id=portfolio.portfolio_id, api_key=api_key
     )
     returns = returns.dropna()
+    returns = drop_incomplete_last_day(returns)
     returns.index.name = "date"
     returns.name = "return"
 
