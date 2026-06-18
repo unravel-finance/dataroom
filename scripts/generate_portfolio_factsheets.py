@@ -33,6 +33,7 @@ from unravel_client import (  # noqa: E402
 
 from scripts._common import (  # noqa: E402
     UnknownPortfolios,
+    drop_incomplete_last_day,
     get_api_key,
     job_count,
     select_portfolios,
@@ -67,6 +68,7 @@ def _fetch_portfolio_inputs(
     returns = get_portfolio_returns(id=portfolio.portfolio_id, api_key=api_key)
     returns = returns.dropna()
     returns.index = pd.to_datetime(returns.index)
+    returns = drop_incomplete_last_day(returns)
 
     start_date = returns.index.min().strftime("%Y-%m-%d")
     end_date = returns.index.max().strftime("%Y-%m-%d")

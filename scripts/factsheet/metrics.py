@@ -50,7 +50,13 @@ def compute_stats(returns: pd.Series) -> Stats:
     if r.empty:
         raise ValueError("Returns series is empty")
 
-    cagr = float(qs.cagr(r, periods=TRADING_DAYS))
+    span_days = (r.index[-1] - r.index[0]).days
+    gross = float((1.0 + r).prod())
+    cagr = (
+        gross ** (TRADING_DAYS / span_days) - 1.0
+        if span_days > 0 and gross > 0
+        else float("nan")
+    )
     max_dd = float(qs.max_drawdown(r))
     # Recompute Calmar with our crypto period (qs.calmar hardcodes 252).
     calmar = cagr / abs(max_dd) if max_dd < 0 else float("nan")

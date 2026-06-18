@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 from scripts.factors_catalog import Factor, load_factors
 from scripts.portfolios_catalog import Portfolio, load_portfolios
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 def get_api_key() -> str:
@@ -13,6 +17,21 @@ def get_api_key() -> str:
     if not key:
         raise RuntimeError("UNRAVEL_API_KEY environment variable is not set")
     return key
+
+
+def drop_incomplete_last_day(returns: pd.Series) -> pd.Series:
+    """Drop a trailing same-day (incomplete) observation so the series ends on
+    the last *complete* UTC day.
+
+    import pandas as pd
+
+    if returns.empty:
+        return returns
+    last_date = pd.Timestamp(returns.index[-1]).date()
+    today_utc = pd.Timestamp.now(tz="UTC").date()
+    if last_date == today_utc:
+        return returns.iloc[:-1]
+    return returns
 
 
 class UnknownFactors(KeyError):
