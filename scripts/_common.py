@@ -23,10 +23,6 @@ def drop_incomplete_last_day(returns: pd.Series) -> pd.Series:
     """Drop a trailing same-day (incomplete) observation so the series ends on
     the last *complete* UTC day.
 
-    Mirrors the apps/alpha portfolio page (``apps/web/lib/cut.ts``), which omits
-    the current day's partial return. Applying the same cutoff here keeps the
-    factsheet/CSV "end date" aligned with the live site instead of drifting a
-    day ahead of it."""
     import pandas as pd
 
     if returns.empty:
