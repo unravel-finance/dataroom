@@ -13,9 +13,6 @@ on:
         type: boolean
         default: false
 
-  # Daily so the published CSVs/PDFs stay within ~1 day of the live R2 export
-  # apps/alpha reads (was weekly '0 6 * * 1', which let the data-room drift up
-  # to 7 days behind the site).
   schedule:
     - cron: '0 6 * * *'
 
