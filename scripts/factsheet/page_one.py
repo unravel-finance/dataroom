@@ -309,12 +309,16 @@ def _draw_section_eyebrow(
     right_label: str = "",
     sub_label: str = "",
     sub_label_wrap: int = 140,
-) -> None:
+) -> float:
     """Section divider. Title left + optional caption right + thin rule above.
 
     When ``sub_label`` is set it sits underneath the title as a muted
     line, wrapped at ``sub_label_wrap`` chars (narrow it when a right-side
-    control shares the header row so the text stays clear of it)."""
+    control shares the header row so the text stays clear of it).
+
+    Returns the figure-fraction y of the caption's bottom edge so the caller
+    can flow the next band beneath a caption that wraps to a variable number
+    of lines; with no ``sub_label`` this is just ``y``."""
     _hline(fig, y + 0.013, lw=0.6)
     fig.text(
         MARGIN_X,
@@ -335,18 +339,22 @@ def _draw_section_eyebrow(
             va="top",
             ha="right",
         )
-    if sub_label:
-        # Wrap to the full text column so the sub-label never spills past
-        # the right margin even on factors with long universe descriptions.
-        fig.text(
-            MARGIN_X,
-            y - 0.013,
-            _wrap(sub_label, width=sub_label_wrap),
-            fontsize=7.5,
-            color=theme.MUTED,
-            va="top",
-            linespacing=1.4,
-        )
+    if not sub_label:
+        return y
+    # Wrap to the full text column so the sub-label never spills past
+    # the right margin even on factors with long universe descriptions.
+    sub_top = y - 0.013
+    st = fig.text(
+        MARGIN_X,
+        sub_top,
+        _wrap(sub_label, width=sub_label_wrap),
+        fontsize=7.5,
+        color=theme.MUTED,
+        va="top",
+        linespacing=1.4,
+    )
+    _, h_frac = _text_extent_frac(fig, st)
+    return sub_top - h_frac
 
 
 # ---------- tabular performance / risk bands ---------------------------------
@@ -433,10 +441,10 @@ def _draw_table_band(
 def _draw_performance_band(
     fig: plt.Figure, returns: pd.Series, stats: metrics.Stats, y_top: float
 ) -> None:
-    """Two-group Performance band: calendar-anchored Cumulative Returns
-    (MTD / Last Month / YTD / 1Y) on the left, trailing CAGR
-    (1M / 3M / 1Y / 3Y / 5Y / SI) on the right. Mirrors the
-    PerformanceSummaryTable on the site's portfolio page."""
+    """Two-group Performance band: Cumulative Returns
+    (MTD / Last Month / 1M / 3M / YTD) on the left, annualised CAGR
+    (1Y / 3Y / 5Y / SI) on the right. Mirrors the PerformanceSummaryTable
+    on the site's portfolio page."""
     fig.text(
         MARGIN_X, y_top + 0.022, "PERFORMANCE",
         fontsize=7, color=theme.MUTED, weight="semibold", va="top",
@@ -455,6 +463,10 @@ def _draw_performance_band(
     )
     cum = metrics.cumulative_returns_by_window(returns)
     cagr = metrics.cagr_by_window(returns)
+    # 1M / 3M sit with the cumulative figures as compound (not annualised)
+    # returns — extrapolating a sub-quarter window to a yearly rate overstates
+    # it. gross_return_by_window gives the trailing compound return per window.
+    gross = metrics.gross_return_by_window(returns)
     _draw_table_band(
         fig,
         y_top,
@@ -464,15 +476,16 @@ def _draw_performance_band(
                 "cols": [
                     ("MTD", metrics.fmt_pct(cum["MTD"])),
                     ("Last Month", metrics.fmt_pct(cum["LastMonth"])),
+                    ("1M", metrics.fmt_pct(gross["1M"])),
+                    ("3M", metrics.fmt_pct(gross["3M"])),
                     ("YTD", metrics.fmt_pct(cum["YTD"])),
-                    ("1Y", metrics.fmt_pct(cum["1Y"])),
                 ],
             },
             {
                 "title": "Annualised Returns (CAGR)",
                 "cols": [
                     (lbl, metrics.fmt_pct(cagr[lbl]))
-                    for lbl in ("1M", "3M", "1Y", "3Y", "5Y", "SI")
+                    for lbl in ("1Y", "3Y", "5Y", "SI")
                 ],
             },
         ],
@@ -677,7 +690,7 @@ def render_page_one(
     _draw_overview(fig, factor, y_top=overview_top)
 
     section_label, section_sub_label = _section_copy(factor)
-    _draw_section_eyebrow(
+    eyebrow_bottom = _draw_section_eyebrow(
         fig,
         y=0.520,
         label=section_label,
@@ -702,8 +715,12 @@ def render_page_one(
         fontsize=7,
     )
 
-    # Performance + risk tabular bands (replace the heatmap & KPI strip)
-    _draw_performance_band(fig, returns, stats, y_top=0.453)
+    # Performance + risk tabular bands (replace the heatmap & KPI strip).
+    # A long (3-line) caption would otherwise overlap the PERFORMANCE header,
+    # so drop the band just enough to clear the caption's measured bottom;
+    # short captions keep the tuned 0.453 position (the clamp is a no-op).
+    perf_y_top = min(0.453, eyebrow_bottom - 0.028)
+    _draw_performance_band(fig, returns, stats, y_top=perf_y_top)
     _draw_risk_band(fig, returns, stats, y_top=0.363)
 
     # Cumulative return — full width below the tables
