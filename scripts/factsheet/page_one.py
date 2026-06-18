@@ -442,7 +442,7 @@ def _draw_performance_band(
     fig: plt.Figure, returns: pd.Series, stats: metrics.Stats, y_top: float
 ) -> None:
     """Two-group Performance band: Cumulative Returns
-    (MTD / Last Month / 1M / 3M / YTD / 1Y) on the left, annualised CAGR
+    (MTD / Last Month / 1M / 3M / YTD) on the left, annualised CAGR
     (1Y / 3Y / 5Y / SI) on the right. Mirrors the PerformanceSummaryTable
     on the site's portfolio page."""
     fig.text(
@@ -479,7 +479,6 @@ def _draw_performance_band(
                     ("1M", metrics.fmt_pct(gross["1M"])),
                     ("3M", metrics.fmt_pct(gross["3M"])),
                     ("YTD", metrics.fmt_pct(cum["YTD"])),
-                    ("1Y", metrics.fmt_pct(cum["1Y"])),
                 ],
             },
             {
