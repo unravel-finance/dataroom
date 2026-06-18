@@ -132,9 +132,6 @@ jobs:
           git pull --rebase origin "${GITHUB_REF_NAME}"
           git push origin "HEAD:${GITHUB_REF_NAME}"
 
-      # `main` is branch-protected, so the daily refresh lands via an
-      # auto-merged PR (below) rather than a direct push. Schedule /
-      # manual-dispatch / push-to-main open (or update) the refresh PR.
       - name: Open PR with refreshed data
         id: cpr
         if: ${{ (github.event_name != 'push' || github.ref_name == 'main') && github.event.inputs.skip_commit != 'true' }}
