@@ -441,10 +441,10 @@ def _draw_table_band(
 def _draw_performance_band(
     fig: plt.Figure, returns: pd.Series, stats: metrics.Stats, y_top: float
 ) -> None:
-    """Two-group Performance band: calendar-anchored Cumulative Returns
-    (MTD / Last Month / YTD / 1Y) on the left, trailing CAGR
-    (1M / 3M / 1Y / 3Y / 5Y / SI) on the right. Mirrors the
-    PerformanceSummaryTable on the site's portfolio page."""
+    """Two-group Performance band: Cumulative Returns
+    (MTD / Last Month / 1M / 3M / YTD / 1Y) on the left, annualised CAGR
+    (1Y / 3Y / 5Y / SI) on the right. Mirrors the PerformanceSummaryTable
+    on the site's portfolio page."""
     fig.text(
         MARGIN_X, y_top + 0.022, "PERFORMANCE",
         fontsize=7, color=theme.MUTED, weight="semibold", va="top",
