@@ -21,8 +21,7 @@ def get_api_key() -> str:
 
 def drop_incomplete_last_day(returns: pd.Series) -> pd.Series:
     """Drop a trailing same-day (incomplete) observation so the series ends on
-    the last *complete* UTC day.
-
+    the last *complete* UTC day."""
     import pandas as pd
 
     if returns.empty:
