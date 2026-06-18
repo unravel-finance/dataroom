@@ -157,19 +157,6 @@ jobs:
             met; for manual / `main` triggers, review the diff and merge.
           delete-branch: true
 
-      # Land the daily refresh unattended: enable auto-merge so the PR merges
-      # once branch-protection requirements pass; fall back to an immediate
-      # merge when nothing is pending (no required checks).
-      #
-      # One-time prerequisites (repo Settings → General / Branches):
-      #   • "Allow auto-merge" enabled.
-      #   • `main` protection must be satisfiable by the bot — don't require a
-      #     human review for this branch (or add the actions bot as a bypass
-      #     actor).
-      #   • If `main` requires status checks, open the PR with a PAT (store it
-      #     as a secret and pass it to create-pull-request `token:`) so the
-      #     checks run — PRs opened with the default GITHUB_TOKEN don't trigger
-      #     them, and auto-merge would wait forever.
       - name: Auto-merge the scheduled refresh
         if: ${{ github.event_name == 'schedule' && steps.cpr.outputs.pull-request-number }}
         env:
