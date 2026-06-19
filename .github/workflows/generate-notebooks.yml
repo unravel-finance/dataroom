@@ -102,6 +102,7 @@ jobs:
           git push origin "HEAD:${GITHUB_REF_NAME}"
 
       - name: Open PR with refreshed notebooks
+        id: cpr
         if: ${{ success() && (github.event_name != 'push' || github.ref_name == 'main') }}
         uses: peter-evans/create-pull-request@v6
         with:
@@ -120,4 +121,16 @@ jobs:
             outputs match the substituted parameters.
 
             Trigger: `${{ github.event_name }}`.
+
+            Scheduled runs auto-merge once branch-protection requirements are
+            met; for manual / `main` triggers, review the diff and merge.
           delete-branch: true
+
+      - name: Auto-merge the scheduled refresh
+        if: ${{ github.event_name == 'schedule' && steps.cpr.outputs.pull-request-number }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ steps.cpr.outputs.pull-request-number }}
+        run: |
+          gh pr merge "$PR" --squash --delete-branch --auto \
+            || gh pr merge "$PR" --squash --delete-branch
