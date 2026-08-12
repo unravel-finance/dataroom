@@ -73,9 +73,9 @@ or modify one, complete [Setup](#run-the-notebooks-setup) then open it in Jupyte
 
 | Notebook | Source | Description |
 | --- | --- | --- |
-| [Adaptive Portfolios](notebooks/00_adaptive-portfolios.ipynb) | — | Replicate Unravel's risk-targeted Adaptive portfolios through the Unravel API |
 | [Multi-Factor Portfolio Construction](notebooks/00_multi_factor_portfolio_construction.ipynb) | — | Combine several single-factor portfolios into one diversified multi-factor allocation |
 | [Replicate Portfolio Backtest](notebooks/00_replicate_portfolio_backtest.ipynb) | [.py](notebooks/src/00_replicate_portfolio_backtest.py) | Transparent backtest with transaction costs against a portfolio's historical weights |
+| [Adaptive Portfolios](notebooks/00_adaptive-portfolios.ipynb) | — | Replicate Unravel's risk-targeted Adaptive portfolios through the Unravel API |
 | [Get Live Weights](notebooks/00_get_live_weights.ipynb) | [.py](notebooks/src/00_get_live_weights.py) | Fetch a portfolio's current live allocations from the Unravel API |
 
 ## Catalog
@@ -89,8 +89,42 @@ For the full list of portfolios and parameters, see the
 
 ```bash
 pip install -r requirements.txt
-export UNRAVEL_API_KEY="your_api_key_here"   # or put it in a .env file
+export UNRAVEL_API_KEY="your_api_key_here"
 ```
+
+Instead of exporting it every session you can drop the key in a `.env`
+file **in the repository root** — the notebooks call `load_dotenv()`,
+which walks up from the notebook's directory to find it:
+
+```
+UNRAVEL_API_KEY=your_api_key_here
+```
+
+Running a notebook in **Google Colab** instead? There is no `.env` there
+— add `UNRAVEL_API_KEY` in the Secrets panel (the key icon in the left
+sidebar) and enable notebook access.
 
 Get an API key by signing up at [unravel.finance](https://unravel.finance)
 and generating one in your API settings.
+
+### Troubleshooting: `401 Unauthorized` / `PGRST116`
+
+```
+HTTPError: 401 Unauthorized: {'code': 'PGRST116',
+ 'details': 'The result contains 0 rows', ...}
+```
+
+This means the API key that reached the server matched no account — it
+is an authentication failure, not a problem with the parameters or the
+date range you requested. Almost always the key never got set, so the
+notebook sent an empty one. Check that `UNRAVEL_API_KEY` is actually
+visible to the kernel:
+
+```python
+import os; print(repr(os.environ.get("UNRAVEL_API_KEY")))
+```
+
+`None` means the key is not set — see the setup steps above, and restart
+the kernel after creating the `.env` file. If it prints a key and you
+still get a 401, the key itself is invalid or revoked; generate a fresh
+one in your API settings.
