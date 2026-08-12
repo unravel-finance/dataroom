@@ -20,8 +20,9 @@ from scripts.factors_catalog import Factor, load_factors
 REPO_ROOT = Path(__file__).resolve().parent.parent
 NOTEBOOKS_DIR = REPO_ROOT / "notebooks"
 SRC_DIR = NOTEBOOKS_DIR / "src"
-# 00_ prefix sorts the cross-factor overview above every factor_analysis_*.
-CORRELATION_STEM = "00_factor_returns_correlation"
+# Numeric prefix sorts the cross-factor overview above every
+# factor_analysis_*, and orders it within the 0N_ walkthrough sequence.
+CORRELATION_STEM = "02_factor_returns_correlation"
 
 # Resolves `import analysis` (package now lives in notebooks/) and
 # `scripts.factors_catalog` from wherever the notebook runs (notebooks/

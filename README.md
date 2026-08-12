@@ -18,7 +18,7 @@ link below. To run or modify one yourself, complete [Setup](#run-the-notebooks-s
 open it in Jupyter, e.g.
 `jupyter notebook notebooks/factor_analysis_altair.ipynb`.
 
-**Start here — [cross-factor returns correlation](notebooks/00_factor_returns_correlation.ipynb):**
+**Start here — [cross-factor returns correlation](notebooks/02_factor_returns_correlation.ipynb):**
 a correlation heatmap across every portfolio returns. These were created from the raw factor data and show how you can construct a cross-sectional portfolio out of them. 
 The factors are meant to be combined into multi-factor portfolios, see how you can do that here: [Multi-Factor Portfolio Construction](notebooks/00_multi_factor_portfolio_construction.ipynb)
 
@@ -69,14 +69,14 @@ and `scripts/export_portfolio_returns.py`.
 End-to-end portfolio examples. Each notebook is committed pre-rendered, so
 GitHub displays it in your browser — just click a **Notebook** link. To run
 or modify one, complete [Setup](#run-the-notebooks-setup) then open it in Jupyter, e.g.
-`jupyter notebook notebooks/00_replicate_portfolio_backtest.ipynb`.
+`jupyter notebook notebooks/01_replicate_portfolio_backtest.ipynb`.
 
 | Notebook | Source | Description |
 | --- | --- | --- |
 | [Multi-Factor Portfolio Construction](notebooks/00_multi_factor_portfolio_construction.ipynb) | — | Combine several single-factor portfolios into one diversified multi-factor allocation |
-| [Replicate Portfolio Backtest](notebooks/00_replicate_portfolio_backtest.ipynb) | [.py](notebooks/src/00_replicate_portfolio_backtest.py) | Transparent backtest with transaction costs against a portfolio's historical weights |
-| [Adaptive Portfolios](notebooks/00_adaptive-portfolios.ipynb) | — | Replicate Unravel's risk-targeted Adaptive portfolios through the Unravel API |
-| [Get Live Weights](notebooks/00_get_live_weights.ipynb) | [.py](notebooks/src/00_get_live_weights.py) | Fetch a portfolio's current live allocations from the Unravel API |
+| [Replicate Portfolio Backtest](notebooks/01_replicate_portfolio_backtest.ipynb) | [.py](notebooks/src/01_replicate_portfolio_backtest.py) | Transparent backtest with transaction costs against a portfolio's historical weights |
+| [Adaptive Portfolios](notebooks/03_adaptive-portfolios.ipynb) | — | Replicate Unravel's risk-targeted Adaptive portfolios through the Unravel API |
+| [Get Live Weights](notebooks/04_get_live_weights.ipynb) | [.py](notebooks/src/04_get_live_weights.py) | Fetch a portfolio's current live allocations from the Unravel API |
 
 ## Catalog
 

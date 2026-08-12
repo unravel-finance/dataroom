@@ -10,7 +10,7 @@ For each portfolio in ``scripts.portfolios_catalog``, this script:
 1. Picks the right template:
    * **non-adaptive** → ``notebooks/00_multi_factor_portfolio_construction.ipynb``
      (multi-factor blend + backtest, parametrised by ``factors``)
-   * **adaptive** → ``notebooks/00_adaptive-portfolios.ipynb``
+   * **adaptive** → ``notebooks/03_adaptive-portfolios.ipynb``
      (fetches the live, pre-blended weights for the *base* (non-adaptive)
      portfolio, multiplies them by ``crypto_trend_consensus``, backtests
      both — reproduces the Adaptive variant)
@@ -49,7 +49,7 @@ NOTEBOOKS_DIR = REPO_ROOT / "notebooks"
 MULTI_FACTOR_TEMPLATE_NB = (
     NOTEBOOKS_DIR / "00_multi_factor_portfolio_construction.ipynb"
 )
-ADAPTIVE_TEMPLATE_NB = NOTEBOOKS_DIR / "00_adaptive-portfolios.ipynb"
+ADAPTIVE_TEMPLATE_NB = NOTEBOOKS_DIR / "03_adaptive-portfolios.ipynb"
 
 # Regex over a single code-cell's joined source. Captures the literal
 # ``factors = [ … ]`` assignment so we can swap the list contents while
@@ -229,7 +229,7 @@ def _render_multi_factor(portfolio: Portfolio) -> dict:
 
 
 def _render_adaptive(portfolio: Portfolio) -> dict:
-    """Adaptive path: load 00_adaptive-portfolios.ipynb and swap the
+    """Adaptive path: load 03_adaptive-portfolios.ipynb and swap the
     `factor = "..."` parameter so it points at the non-adaptive base
     (e.g. ``spectra`` for ``spectra_adaptive``). The template's
     existing logic — fetch historical weights, fetch overlay, multiply,
@@ -244,7 +244,7 @@ def _render_adaptive(portfolio: Portfolio) -> dict:
     if not factor_swapped:
         raise RuntimeError(
             "Adaptive template's `factor = \"...\"` parameter cell not "
-            "found — has 00_adaptive-portfolios.ipynb changed shape?"
+            "found — has 03_adaptive-portfolios.ipynb changed shape?"
         )
     return nb
 

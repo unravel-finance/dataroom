@@ -16,7 +16,7 @@ BOOKING_URL = f"{SITE_BASE_URL}/booking"
 GITHUB_BLOB_BASE = "https://github.com/unravel-finance/dataroom/blob/main"
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/unravel-finance/dataroom/main"
 # Factors without a committed factor_analysis_<id>.ipynb fall back to this.
-_GENERIC_NOTEBOOK = "notebooks/00_replicate_portfolio_backtest.ipynb"
+_GENERIC_NOTEBOOK = "notebooks/01_replicate_portfolio_backtest.ipynb"
 
 # Excluded from all generation (CSV export + factsheets).
 _EXCLUDED_IDS: frozenset[str] = frozenset({"trend_longonly_adaptive"})
