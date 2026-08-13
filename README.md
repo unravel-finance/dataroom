@@ -143,8 +143,13 @@ unravel_client.get_prices(tickers=["BTC"], api_key=UNRAVEL_API_KEY,
 ```
 
 If that also 401s, the key is not resolving at all — it may be revoked,
-or from a different environment. If it succeeds and only the portfolio
-endpoints fail, your plan does not cover them. Either way, send us the
-key's first 6 characters and the failing call at
-[unravel.finance](https://unravel.finance) and we will look it up — do
-not paste the full key.
+or from a different environment.
+
+If it succeeds and only the universe call fails, you have hit a known
+issue: keys without an active subscription are currently rejected by
+`get_historical_universe`, even though a free account is meant to reach
+it (with data lagged by 30 days). It is not something you can work
+around from the notebook, and it is not a limit on your plan. Get in
+touch at [unravel.finance](https://unravel.finance) with the key's first
+6 characters and the failing call — never the full key — and we will
+sort out access.
