@@ -114,17 +114,37 @@ HTTPError: 401 Unauthorized: {'code': 'PGRST116',
  'details': 'The result contains 0 rows', ...}
 ```
 
-This means the API key that reached the server matched no account — it
-is an authentication failure, not a problem with the parameters or the
-date range you requested. Almost always the key never got set, so the
-notebook sent an empty one. Check that `UNRAVEL_API_KEY` is actually
-visible to the kernel:
+This is an authentication failure — the server could not resolve your
+key to an entitled account. It is never caused by the parameters, the
+universe size, or the date range you requested, so changing those will
+not help.
+
+**First check the key actually reached the kernel:**
 
 ```python
 import os; print(repr(os.environ.get("UNRAVEL_API_KEY")))
 ```
 
-`None` means the key is not set — see the setup steps above, and restart
-the kernel after creating the `.env` file. If it prints a key and you
-still get a 401, the key itself is invalid or revoked; generate a fresh
-one in your API settings.
+`None` or `''` means it was never set — see the setup steps above, and
+restart the kernel after creating the `.env` file. (An unset key is
+worse than it looks: `requests` drops a header whose value is `None`, so
+the call goes out with no key at all and comes back as exactly this
+error.)
+
+**If it prints your key**, the request was authenticated and rejected
+anyway, which is an account-side problem rather than anything you can
+fix in the notebook. Check whether it is the whole account or one
+endpoint by trying a different call with the same key:
+
+```python
+import unravel_client
+unravel_client.get_prices(tickers=["BTC"], api_key=UNRAVEL_API_KEY,
+                          start_date="2024-01-01", end_date="2024-02-01")
+```
+
+If that also 401s, the key is not resolving at all — it may be revoked,
+or from a different environment. If it succeeds and only the portfolio
+endpoints fail, your plan does not cover them. Either way, send us the
+key's first 6 characters and the failing call at
+[unravel.finance](https://unravel.finance) and we will look it up — do
+not paste the full key.
