@@ -18,7 +18,7 @@ link below. To run or modify one yourself, complete [Setup](#run-the-notebooks-s
 open it in Jupyter, e.g.
 `jupyter notebook notebooks/factor_analysis_altair.ipynb`.
 
-**Start here — [cross-factor returns correlation](notebooks/00_factor_returns_correlation.ipynb):**
+**Start here — [cross-factor returns correlation](notebooks/02_factor_returns_correlation.ipynb):**
 a correlation heatmap across every portfolio returns. These were created from the raw factor data and show how you can construct a cross-sectional portfolio out of them. 
 The factors are meant to be combined into multi-factor portfolios, see how you can do that here: [Multi-Factor Portfolio Construction](notebooks/00_multi_factor_portfolio_construction.ipynb)
 
@@ -69,14 +69,14 @@ and `scripts/export_portfolio_returns.py`.
 End-to-end portfolio examples. Each notebook is committed pre-rendered, so
 GitHub displays it in your browser — just click a **Notebook** link. To run
 or modify one, complete [Setup](#run-the-notebooks-setup) then open it in Jupyter, e.g.
-`jupyter notebook notebooks/00_replicate_portfolio_backtest.ipynb`.
+`jupyter notebook notebooks/01_replicate_portfolio_backtest.ipynb`.
 
 | Notebook | Source | Description |
 | --- | --- | --- |
-| [Adaptive Portfolios](notebooks/00_adaptive-portfolios.ipynb) | — | Replicate Unravel's risk-targeted Adaptive portfolios through the Unravel API |
 | [Multi-Factor Portfolio Construction](notebooks/00_multi_factor_portfolio_construction.ipynb) | — | Combine several single-factor portfolios into one diversified multi-factor allocation |
-| [Replicate Portfolio Backtest](notebooks/00_replicate_portfolio_backtest.ipynb) | [.py](notebooks/src/00_replicate_portfolio_backtest.py) | Transparent backtest with transaction costs against a portfolio's historical weights |
-| [Get Live Weights](notebooks/00_get_live_weights.ipynb) | [.py](notebooks/src/00_get_live_weights.py) | Fetch a portfolio's current live allocations from the Unravel API |
+| [Replicate Portfolio Backtest](notebooks/01_replicate_portfolio_backtest.ipynb) | [.py](notebooks/src/01_replicate_portfolio_backtest.py) | Transparent backtest with transaction costs against a portfolio's historical weights |
+| [Adaptive Portfolios](notebooks/03_adaptive-portfolios.ipynb) | — | Replicate Unravel's risk-targeted Adaptive portfolios through the Unravel API |
+| [Get Live Weights](notebooks/04_get_live_weights.ipynb) | [.py](notebooks/src/04_get_live_weights.py) | Fetch a portfolio's current live allocations from the Unravel API |
 
 ## Catalog
 
@@ -89,8 +89,67 @@ For the full list of portfolios and parameters, see the
 
 ```bash
 pip install -r requirements.txt
-export UNRAVEL_API_KEY="your_api_key_here"   # or put it in a .env file
+export UNRAVEL_API_KEY="your_api_key_here"
 ```
+
+Instead of exporting it every session you can drop the key in a `.env`
+file **in the repository root** — the notebooks call `load_dotenv()`,
+which walks up from the notebook's directory to find it:
+
+```
+UNRAVEL_API_KEY=your_api_key_here
+```
+
+Running a notebook in **Google Colab** instead? There is no `.env` there
+— add `UNRAVEL_API_KEY` in the Secrets panel (the key icon in the left
+sidebar) and enable notebook access.
 
 Get an API key by signing up at [unravel.finance](https://unravel.finance)
 and generating one in your API settings.
+
+### Troubleshooting: `401 Unauthorized` / `PGRST116`
+
+```
+HTTPError: 401 Unauthorized: {'code': 'PGRST116',
+ 'details': 'The result contains 0 rows', ...}
+```
+
+This is an authentication failure — the server could not resolve your
+key to an entitled account. It is never caused by the parameters, the
+universe size, or the date range you requested, so changing those will
+not help.
+
+**First check the key actually reached the kernel:**
+
+```python
+import os; print(repr(os.environ.get("UNRAVEL_API_KEY")))
+```
+
+`None` or `''` means it was never set — see the setup steps above, and
+restart the kernel after creating the `.env` file. (An unset key is
+worse than it looks: `requests` drops a header whose value is `None`, so
+the call goes out with no key at all and comes back as exactly this
+error.)
+
+**If it prints your key**, the request was authenticated and rejected
+anyway, which is an account-side problem rather than anything you can
+fix in the notebook. Check whether it is the whole account or one
+endpoint by trying a different call with the same key:
+
+```python
+import unravel_client
+unravel_client.get_prices(tickers=["BTC"], api_key=UNRAVEL_API_KEY,
+                          start_date="2024-01-01", end_date="2024-02-01")
+```
+
+If that also 401s, the key is not resolving at all — it may be revoked,
+or from a different environment.
+
+If it succeeds and only the universe call fails, you have hit a known
+issue: keys without an active subscription are currently rejected by
+`get_historical_universe`, even though a free account is meant to reach
+it (with data lagged by 30 days). It is not something you can work
+around from the notebook, and it is not a limit on your plan. Get in
+touch at [unravel.finance](https://unravel.finance) with the key's first
+6 characters and the failing call — never the full key — and we will
+sort out access.
