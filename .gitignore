@@ -1,4 +1,7 @@
 .env
+data/raw-factors/
+notebooks/*.ipynb
+notebooks/preview/
 ci-artifacts/
 __pycache__/**
 *.pyc

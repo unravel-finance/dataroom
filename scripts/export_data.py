@@ -1,4 +1,4 @@
-"""Export per-factor CSVs (portfolio returns + raw factor data) from the Unravel API.
+"""Export per-factor portfolio-return CSVs from the Unravel API.
 
 Usage:
     python -m scripts.export_data                 # all factors
@@ -14,11 +14,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
-from unravel_client import (
-    get_portfolio_factors_historical,
-    get_portfolio_returns,
-    get_tickers,
-)
+from unravel_client import get_portfolio_returns
 
 from scripts._common import (
     UnknownFactors,
@@ -31,31 +27,6 @@ from scripts.factors_catalog import Factor
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RETURNS_DIR = REPO_ROOT / "data" / "portfolio-40-returns"
-FACTORS_DIR = REPO_ROOT / "data" / "raw-factors"
-
-# Recent factor values are a live, paid signal — never publish them.
-EMBARGO_DAYS = 30
-
-
-def _embargo_recent(factor_data: pd.DataFrame) -> pd.DataFrame:
-    """Drop the trailing EMBARGO_DAYS so the export never leaks live signal."""
-    idx = pd.to_datetime(factor_data.index)
-    tz = getattr(idx, "tz", None)
-    cutoff = pd.Timestamp.now(tz=tz).normalize() - pd.Timedelta(days=EMBARGO_DAYS)
-    mask = idx <= cutoff
-    kept = factor_data.loc[mask]
-    dropped = int((~mask).sum())
-    if dropped:
-        print(
-            f"  · embargo: dropped last {dropped} row(s) newer than "
-            f"{cutoff.date()} (≤ {EMBARGO_DAYS}d)"
-        )
-    if not kept.empty:
-        max_kept = pd.to_datetime(kept.index).max()
-        assert max_kept <= cutoff, (
-            f"embargo check failed: latest exported {max_kept} > {cutoff}"
-        )
-    return kept
 
 
 def export_returns(factor: Factor, api_key: str) -> Path:
@@ -75,42 +46,9 @@ def export_returns(factor: Factor, api_key: str) -> Path:
     return out
 
 
-def export_factor_data(factor: Factor, api_key: str) -> Path:
-    """Save the raw factor data on the full, unconstrained universe.
-
-    (The factsheet's AlphaLens analysis pins to the rolling Top-N
-    separately; this CSV is the complete factor.)
-    """
-    tickers = get_tickers(
-        id=factor.portfolio_id.split(".")[0],
-        api_key=api_key,
-        universe_size="full",
-        exchange=None,
-    )
-    factor_data: pd.DataFrame = get_portfolio_factors_historical(
-        id=factor.portfolio_id.split(".")[0],
-        tickers=tickers,
-        api_key=api_key,
-    )
-    factor_data.index.name = "date"
-    factor_data = _embargo_recent(factor_data)
-    # float32 + %.4g: within float32 noise for factor values, keeps CSV small.
-    factor_data = factor_data.astype("float32")
-
-    FACTORS_DIR.mkdir(parents=True, exist_ok=True)
-    out = FACTORS_DIR / f"{factor.id}.csv"
-    factor_data.to_csv(out, float_format="%.4g")
-    print(
-        f"  ✓ factor data → {out.relative_to(REPO_ROOT)} "
-        f"({len(factor_data)} rows × {factor_data.shape[1]} tickers)"
-    )
-    return out
-
-
 def export_factor(factor: Factor, api_key: str) -> None:
     print(f"[{factor.id}] {factor.name}")
     export_returns(factor, api_key)
-    export_factor_data(factor, api_key)
 
 
 def main(argv: list[str]) -> int:
